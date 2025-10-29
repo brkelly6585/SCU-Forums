@@ -1,0 +1,62 @@
+@import url("base.css");
+
+main {
+  position: relative;
+  max-width: 50rem;
+  margin: 2rem auto;
+  padding: 1rem 1rem 1rem;
+  background-color: white;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+}
+
+/* Highlighted section */
+.highlight {
+  background-color: var(--secondary);
+  color: var(--text);
+  padding: 0.8rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  border-left: 5px solid var(--primary);
+}
+
+/*Drag highlight function*/
+.yellow-highlight {
+  background-color: yellow;
+  font-weight: normal;
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* Footer in article */
+article footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+article footer a,
+article footer button {
+  margin-right: 0.5rem;
+}
+
+.download-highlight-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  background-color: var(--primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.2s ease;
+}
+
+.download-highlight-btn:hover {
+  background-color: var(--tertiary);
+}

@@ -1,0 +1,57 @@
+@import url("base.css");
+
+/* Improved Search Bar Styling */
+header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem 1rem;
+  background-color: var(--secondary);
+  border-bottom: 2px solid var(--primary);
+}
+
+header input[type="text"] {
+  width: 100%;
+  max-width: 450px;
+  padding: 0.75rem 1.2rem;
+  font-size: 1rem;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  outline: none;
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+header input[type="text"]:focus {
+  border-color: var(--tertiary);
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+}
+
+
+main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Article cards */
+.article-card {
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  background-color: white;
+  padding: 1rem;
+  flex: 1 1 calc(33% - 1rem);
+  min-width: 16rem;
+  transition: transform 0.2s ease;
+}
+
+.article-card:hover {
+  transform: translateY(-3px);
+}
+
+.article-card h2 {
+  margin-top: 0;
+  color: var(--primary);
+}
