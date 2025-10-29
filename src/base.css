@@ -1,0 +1,53 @@
+:root {
+    --primary: #e74c3c;
+    /* Main red */
+    --secondary: #f8d7d7;
+    /* Light background red */
+    --tertiary: #b03a2e;
+    /* Darker shade for hover */
+    --text: #222;
+    /* Text color */
+  }
+  
+.hidden {
+    display: none;
+}
+
+nav {
+    background-color: var(--primary);
+    display: flex;
+    justify-content: flex-end;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+  }
+  
+  nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+  }
+  
+  nav li {
+    margin-right: 1rem;
+  }
+  
+  nav a {
+    color: white;
+    text-decoration: none;
+    padding: 1rem 1rem;
+    display: inline-block;
+    font-weight: 600;
+  }
+  
+  nav a:hover {
+    background-color: var(--tertiary);
+  }
+  
+  .active {
+    background-color: var(--tertiary);
+  }
+  
