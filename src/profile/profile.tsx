@@ -18,18 +18,12 @@ function Profile() {
     }, []);
     return (
         <div className="profile">
-            <div className="top-bar">
-                <div className="left-space"></div>
-                <h1 className="top-bar-title">User Profile</h1>
-                <div className="top-bar-buttons">
-                    <div className="top-bar-box" style={{marginRight: "10px"}}>
-                        <Link to="/" className="top-link">Sign Out</Link>
-                    </div>
-                    <div className="top-bar-box">
-                        <Link to="/dashboard" className="top-link">Dashboard</Link>
-                    </div>
-                </div>
-            </div>
+            <nav>
+                <ul>
+                    <li><Link to="/">Sign Out</Link></li>
+                    <li><Link to="/dashboard">Dashboard</Link></li>
+                </ul>
+            </nav>
             <div className="profile-main">
                 <div className="profile-box">
                     <div className="info-header">

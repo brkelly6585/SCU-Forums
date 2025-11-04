@@ -5,8 +5,8 @@ import "./forum.css";
 import "../base.css";
 
 const forums = [
-  { id: "math101", title: "Math 101" },
-  { id: "cs202", title: "Computer Science 202" },
+  { id: "CSEN174", title: "Computer Science 174" },
+  { id: "CSEN160", title: "Computer Science 160" },
   { id: "eng301", title: "English 301" },
 ];
 

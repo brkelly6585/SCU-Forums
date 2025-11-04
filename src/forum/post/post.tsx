@@ -25,9 +25,9 @@ function Post() {
         <div className="post-container">
             <nav>
                 <ul>
+                    <li><Link to="/">Sign Out</Link></li>
                     <li><Link to="/dashboard">Dashboard</Link></li>
-                    <li><Link to="/profile">Profile</Link></li>
-                    <li><Link to="/forum">Back to Forums</Link></li>
+                    
                 </ul>
             </nav>
 
