@@ -1,0 +1,43 @@
+html, body, #root {
+    height: 100%;
+    margin: 0;
+}
+
+.login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-container {
+    width: 40vw;
+    height: 40vh;
+    background-color: #f0f0f0;
+    border-radius: 16px;
+    border: 2px solid black;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.input-box {
+    margin: 5px;
+}
+
+.input-label {
+    margin-right: 5px;
+}
+
+.input-text {
+    width: 60%;
+    height: 20px;
+    border-radius: 20px;
+    padding-left: 10px;
+}
+
+.disclaimer {
+    font-size: 1vh;
+    font-style: italic;
+    color: rgb(85, 85, 85);
+}
