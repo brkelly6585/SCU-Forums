@@ -109,6 +109,7 @@ html, body, #root {
 .info-section{
     display: flex;
     flex-direction: row;
+    margin-bottom: 5px;
 }
 
 .sec-name{
@@ -116,5 +117,17 @@ html, body, #root {
 }
 
 .sec-value{
-    font-weight: bold;
+    border-radius: 16px;
+    padding-left: 10px;
+    font-size: 1.3rem;
+}
+
+.submit-layer{
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.submit-info{
+    width: fit-content;
 }

@@ -19,7 +19,11 @@ function Login() {
                     <label htmlFor="password" className="input-label">Password:</label>
                     <input type="text" id="password" className="input-text" placeholder="Enter Password here..."/>
                 </div>
-                <Link to="/dashboard">Click here to log in</Link>
+                <Link to="/dashboard" className="login-box login-text">
+                    <div className="login-submit">
+                        Log in
+                    </div>
+                </Link>
             </div>
         </div>
     );

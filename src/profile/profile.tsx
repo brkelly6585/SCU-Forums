@@ -1,8 +1,18 @@
 import { BrowserRouter as Router, Link } from "react-router-dom";
 import './profile.css';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
 
 function Profile() {
+    const [infoToggle, setToggle] = useState(true);
+    const [fName, setFName] = useState("James");
+    const [lName, setLName] = useState("Hunter");
+    const [major, setMajor] = useState("CSEN");
+    const [minor, setMinor] = useState("N/A");
+    const [email, setEmail] = useState("jhunter@scu.edu");
+    const [grade, setGrade] = useState("Senior");
+    const [courses, setCourses] = useState("CSEN174, CSEN160, HIST79");
+    const [interests, setInterests] = useState("N/A");
     useEffect(() => {
         document.title = "Profile"
     }, []);
@@ -24,46 +34,90 @@ function Profile() {
                 <div className="profile-box">
                     <div className="info-header">
                         <h3 className="info-title">Personal Info</h3>
-                        <button className="info-button">Toggle Info</button>
+                        <button className="info-button" onClick={() => setToggle(!infoToggle)}>Toggle Info</button>
                     </div>
                     <div className="profile-info">
                         <div className="info-column">
                             <div className="info-section">
                                 <label className="sec-name">First Name:</label>
-                                <div className="sec-value">James</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={fName}
+                                    onChange={(e) => setFName(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Last Name:</label>
-                                <div className="sec-value">Hunter</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={lName}
+                                    onChange={(e) => setLName(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Major:</label>
-                                <div className="sec-value">CSEN</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={major}
+                                    onChange={(e) => setMajor(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Minor:</label>
-                                <div className="sec-value">N/A</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={minor}
+                                    onChange={(e) => setMinor(e.target.value)}
+                                    className="sec-value" />
                             </div>
                         </div>
                         <div className="info-column">
                             <div className="info-section">
                                 <label className="sec-name">Email:</label>
-                                <div className="sec-value">jhunter@scu.edu</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Grade:</label>
-                                <div className="sec-value">Senior</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={grade}
+                                    onChange={(e) => setGrade(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Current Courses:</label>
-                                <div className="sec-value">CSEN174, CSEN160, HIST79</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={courses}
+                                    onChange={(e) => setCourses(e.target.value)}
+                                    className="sec-value" />
                             </div>
                             <div className="info-section">
                                 <label className="sec-name">Outside Interests:</label>
-                                <div className="sec-value">N/A</div>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={interests}
+                                    onChange={(e) => setInterests(e.target.value)}
+                                    className="sec-value" />
                             </div>
                         </div>
                     </div>
+                    <div className="submit-layer">
+                        {infoToggle ? <span></span> : <button onClick={submitInfo} className="submit-info">Submit</button>}
+                    </div>
+                    
                     
 
                 </div>
@@ -71,5 +125,10 @@ function Profile() {
         </div>
     )
 }
+
+function submitInfo(){
+    console.log("Submitting Info");
+}
+
 
 export default Profile;
