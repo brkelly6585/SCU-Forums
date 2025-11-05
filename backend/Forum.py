@@ -126,8 +126,8 @@ class Forum:
                 forum_model.users.append(user_model)
                 session.add(forum_model)
                 session.commit()
-                print(f"[DEBUG] Added user {user.username} (db_id={user.db_id}) to forum {self.course_name} (db_id={self.db_id})")
-                print(f"[DEBUG] ForumModel.users after add: {[u.id for u in forum_model.users]}")
+                # print(f"[DEBUG] Added user {user.username} (db_id={user.db_id}) to forum {self.course_name} (db_id={self.db_id})")
+                # print(f"[DEBUG] ForumModel.users after add: {[u.id for u in forum_model.users]}")
             session.close()
             # ensure user's forum list also reflects membership (in-memory)
             try:

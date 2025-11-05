@@ -51,7 +51,6 @@ def _serialize_user(user: User):
     }
 
 @app.route('/api/login', methods=['POST', 'OPTIONS'])
-@app.route('/login', methods=['POST', 'OPTIONS'])  # backward-compatible path
 def login():
     if request.method == 'OPTIONS':
         return ('', 204)

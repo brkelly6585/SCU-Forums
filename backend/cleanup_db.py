@@ -13,7 +13,7 @@ def cleanup_db():
         pass
     # Clear in-memory registry to avoid cross-test contamination
     _REGISTRY.clear()
-    print("[DEBUG] Database dropped and recreated; registry cleared.")
+    # print("[DEBUG] Database dropped and recreated; registry cleared.")
 
 if __name__ == "__main__":
     cleanup_db()

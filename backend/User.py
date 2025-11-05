@@ -129,7 +129,7 @@ class User:
             from backend.Forum import Forum
 
             db_forums = session.query(ForumModel).filter(ForumModel.users.any(id=getattr(self, 'db_id', None))).all()
-            print(f"[DEBUG] DB query for forums with user db_id={self.db_id}: {[f.id for f in db_forums]}")
+            # print(f"[DEBUG] DB query for forums with user db_id={self.db_id}: {[f.id for f in db_forums]}")
             forum_wrappers = []
             for db_forum in db_forums:
                 found = None
@@ -144,7 +144,7 @@ class User:
                     forum_wrappers.append(wrapper)
             # Sync self.forum to match DB membership
             self.forum = forum_wrappers
-            print(f"[DEBUG] User {self.username} (db_id={self.db_id}) forum wrappers after sync: {[f.db_id for f in self.forum]}")
+            # print(f"[DEBUG] User {self.username} (db_id={self.db_id}) forum wrappers after sync: {[f.db_id for f in self.forum]}")
             return forum_wrappers
         finally:
             session.close()
