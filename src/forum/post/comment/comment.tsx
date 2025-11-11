@@ -142,11 +142,9 @@ function Comment() {
                 <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write a reply..."
+                    placeholder="Write a comment..."
                 />
-                <button onClick={handleAddComment} disabled={loading}>
-                    {loading ? "Posting..." : "Add Comment"}
-                </button>
+                <button onClick={handleAddComment}>Add Comment</button>
             </div>
         </div>
     );

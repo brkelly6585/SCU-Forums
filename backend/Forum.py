@@ -232,8 +232,6 @@ class Forum:
             raise TypeError("post must be a Post instance")
         # Check membership by db_id instead of object identity
         user_ids = [u.db_id for u in self.users]
-        print(f"[FORUM DEBUG] Checking if poster {post.poster.db_id} is in forum users {user_ids}")
-        print(f"[FORUM DEBUG] Forum users objects: {[(u.username, u.db_id) for u in self.users]}")
         if post.poster.db_id not in user_ids:
             raise ValueError("post author must be a member of the forum")
         # Check if user is restricted (also by db_id)

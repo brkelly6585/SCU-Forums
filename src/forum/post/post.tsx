@@ -29,8 +29,8 @@ function Post() {
 
     const handleGetPosts = async () => {
         setError("");
-        if (!forumId) {
-            setError("Invalid forum ID.");
+        if(!forumId){
+            setError("Please enter a valid forum");
             return;
         }
         setLoading(true);
@@ -39,8 +39,15 @@ function Post() {
             const data = await resp.json().catch(() => null);
 
             if (resp.ok && data) {
-                setForumTitle(data.course_name || `Forum ${forumId}`);
-                if (data.posts) setPosts(data.posts);
+                //sessionStorage.setItem("user", JSON.stringify(data));
+                //navigate("/dashboard");
+                console.log(data);
+                if(data.course_name){
+                    setForumTitle(data.course_name);
+                }
+                if(data.posts){
+                    setPosts([...posts, ...data.posts]);
+                }
             } else {
                 setError(data?.error || "Failed to load forum data.");
             }
