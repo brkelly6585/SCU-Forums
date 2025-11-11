@@ -1,49 +1,56 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import Navbar from "../../Navbar.tsx";
 import "./post.css";
 import "../../base.css";
+
+interface Thread {
+    id: string;
+    title: string;
+    poster: string;
+    replies: number;
+    createdAt: string;
+}
 
 function Post() {
     const navigate = useNavigate();
     const { forumId } = useParams();
-    const [posts, setPosts] = useState([
-        { id: "0", title: "Welcome to the forum!", poster: "Admin" },
-    ]);
+    const [posts, setPosts] = useState<Thread[]>([]);
+    const [forumTitle, setForumTitle] = useState<string>("");
     const [newPostTitle, setNewPostTitle] = useState("");
     const [newPostMessage, setNewPostMessage] = useState("");
     const [error, setError] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
-    const [forumTitle, setForumTitle] = useState<string>("");
+
+    useEffect(() => {
+        document.title = `Posts for ${forumId}`;
+        handleGetPosts();
+    }, [forumId]);
 
     const handleGetPosts = async () => {
         setError("");
-        if(!forumId){
-            setError("Please enter a valid forum");
+        if (!forumId) {
+            setError("Invalid forum ID.");
             return;
         }
         setLoading(true);
         try {
-            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${Number(forumId)}`)
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${Number(forumId)}`);
             const data = await resp.json().catch(() => null);
+
             if (resp.ok && data) {
-                //sessionStorage.setItem("user", JSON.stringify(data));
-                //navigate("/dashboard");
-                console.log(data);
-                if(data.course_name){
-                    setForumTitle(data.course_name);
-                }
-                if(data.posts){
-                    setPosts([...posts, ...data.posts]);
-                }
+                setForumTitle(data.course_name || `Forum ${forumId}`);
+                if (data.posts) setPosts(data.posts);
             } else {
-                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
+                setError(data?.error || "Failed to load forum data.");
             }
-        } catch (e) {
+        } catch {
             setError("Network error. Please try again.");
         } finally {
             setLoading(false);
         }
-    }
+    };
+
     const handleAddPost = async () => {
         if (!newPostTitle.trim() || !newPostMessage.trim()) {
             setError("Please enter both a title and message");
@@ -77,10 +84,12 @@ function Post() {
             const data = await resp.json().catch(() => null);
             if (resp.ok && data && data.post) {
                 // Add the new post to the list
-                const newPost = {
+                const newPost: Thread = {
                     id: data.post.id,
                     title: data.post.title,
                     poster: data.post.poster,
+                    replies: 0,
+                    createdAt: new Date().toLocaleDateString()
                 };
                 setPosts([...posts, newPost]);
                 setNewPostTitle("");
@@ -88,38 +97,31 @@ function Post() {
             } else {
                 setError((data && data.error) || "Failed to create post");
             }
-        } catch (e) {
+        } catch {
             setError("Network error. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        handleGetPosts();
-    }, [forumId])
-
-    
     return (
         <div className="post-container">
-            <nav>
-                <ul>
-                    <li><Link to="/">Sign Out</Link></li>
-                    <li><Link to="/dashboard">Dashboard</Link></li>
-                    
-                </ul>
-            </nav>
+            <Navbar />
+            <div className="post-header">
+                <h2>{forumTitle}</h2>
+                <div className="post-breadcrumb">
+                    <Link to="/forum">Forums</Link> <span>/</span> <span>{forumId}</span>
+                </div>
+            </div>
 
-            <h2>Posts for {forumTitle}</h2>
-            {error && (
-                <div className="disclaimer" style={{ color: '#b00020', marginTop: '8px' }}>{error}</div>
-            )}
+            {error && <p className="error-text">{error}</p>}
+
             <div className="new-post">
                 <input
                     type="text"
                     value={newPostTitle}
                     onChange={(e) => setNewPostTitle(e.target.value)}
-                    placeholder="Enter post title..."
+                    placeholder="Start a new thread..."
                 />
                 <textarea
                     value={newPostMessage}
@@ -128,18 +130,31 @@ function Post() {
                     rows={3}
                 />
                 <button onClick={handleAddPost} disabled={loading}>
-                    {loading ? 'Adding...' : 'Add Post'}
+                    {loading ? "Posting..." : "Add Thread"}
                 </button>
             </div>
 
-            <ul className="posts-list">
-                {posts.map((post) => (
-                    <li key={post.id}>
-                        <Link to={`/forum/${forumId}/post/${post.id}`}>{post.title}</Link>
-                        <span> — {post.poster}</span>
-                    </li>
-                ))}
-            </ul>
+            <div className="posts-list-wrapper">
+                <div className="posts-list-header">
+                    <span className="col-title">Thread</span>
+                    <span className="col-small">Replies</span>
+                    <span className="col-small">Created</span>
+                </div>
+                <ul className="posts-list">
+                    {posts.map((post) => (
+                        <li key={post.id} className="post-row">
+                            <div className="post-main">
+                                <Link to={`/forum/${forumId}/post/${post.id}`} className="post-link">
+                                    {post.title}
+                                </Link>
+                                <div className="post-meta">Started by {post.poster}</div>
+                            </div>
+                            <div className="post-replies">{post.replies || 0}</div>
+                            <div className="post-date">{post.createdAt}</div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 }

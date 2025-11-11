@@ -1,95 +1,86 @@
-html, body, #root {
-    height: 100%;
-    margin: 0;
+.dashboard-page {
+    background-color: #f8f9fb;
+    min-height: 100vh;
 }
 
-.dashboard {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+.dashboard-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    padding: 2rem 4rem;
 }
 
-.dashboard-main{
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    padding-top: 2.0rem;
+.section-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.dashboard-comp{
-    margin: 40px;
-    width: 30%;
-    background-color: #f0f0f0;
-    border-radius: 16px;
-    border: 2px solid black;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
 }
 
-.forum-title{
-    margin-bottom: 0;
+.section-subtitle {
+    color: #777;
+    margin-bottom: 1.5rem;
 }
 
-.forum-title:hover{
-    text-decoration: underline;
-    cursor: pointer;
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
 }
 
-.forum-subtitle{
-    margin-top: 0;
-    font-weight: normal;
+.data-table thead {
+    background-color: #f2f4f8;
 }
 
-.forum-info{
+.data-table th,
+.data-table td {
     text-align: left;
-    margin-left: 20px;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-hr{
-    border: 1px solid rgb(112, 112, 112);
-    width: 95%;
+.data-table th {
+    font-weight: 600;
+    color: #333;
 }
 
-.post-comp{
-    border-radius: 16px;
-    border: 2px solid black;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    margin-left: 10px;
-    margin-right: 10px;
-    display: flex;
-    justify-content: flex-start;
-    text-align: left;
-    flex-direction: column;
-    padding: 10px;
-    cursor: pointer;
+.data-table tr:hover {
+    background-color: #f9f9f9;
 }
 
-.post-title{
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.post-subtitle{
-    font-size: 1rem;
-    color: rgb(85, 85, 85)
-}
-
-.post-subtitle{
-    font-size: 1rem;
-}
-
-.title-link{
-    color:black;
+.post-link,
+.forum-link {
+    color: #0066cc;
+    font-weight: 500;
     text-decoration: none;
 }
 
-.title-link:visited{
-    color:black;
-    text-decoration: none;
+.post-link:hover,
+.forum-link:hover {
+    text-decoration: underline;
 }
 
-.title-link:hover{
-    text-decoration: underline;
+.forum-desc {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.empty-state {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
 }

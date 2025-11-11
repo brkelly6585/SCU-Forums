@@ -1,33 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+import Navbar from "../../../Navbar.tsx";
 import "./comment.css";
 import "../../../base.css";
 
+interface CommentItem {
+    id: string;
+    text: string;
+    poster: string;
+    createdAt: string;
+}
+
 function Comment() {
-    const navigate = useNavigate();
     const { forumId, postId } = useParams();
-    const [comments, setComments] = useState([
-        { id: "0", text: "Thanks for the post!", poster: "User1" },
-    ]);
-    const [newComment, setNewComment] = useState("");
-    const [error, setError] = useState<string>("");
-    const [loading, setLoading] = useState<boolean>(false);
     const [postTitle, setPostTitle] = useState<string>("");
     const [postBody, setPostBody] = useState<string>("");
     const [postAuthor, setPostAuthor] = useState<string>("");
+    const [comments, setComments] = useState<CommentItem[]>([]);
+    const [newComment, setNewComment] = useState("");
+    const [error, setError] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(false);
+
+    useEffect(() => {
+        document.title = `Post ${postId} • ${forumId}`;
+        handleGetPostInfo();
+    }, [postId]);
 
     const handleGetPostInfo = async () => {
         setError("");
-        if(!postId) {
-            setError("Please enter a valid post");
-            return;
-        }
+        if (!postId) return;
         setLoading(true);
         try {
-            const resp = await fetch(`http://127.0.0.1:5000/api/posts/${Number(postId)}`)
+            const resp = await fetch(`http://127.0.0.1:5000/api/posts/${Number(postId)}`);
             const data = await resp.json().catch(() => null);
             if (resp.ok && data) {
-                console.log(data);
                 setPostTitle(data.title);
                 setPostBody(data.message);
                 setPostAuthor(data.poster);
@@ -36,19 +42,21 @@ function Comment() {
                     const mappedComments = data.comments.map((c: any) => ({
                         id: c.id,
                         text: c.message,
-                        poster: c.poster
+                        poster: c.poster,
+                        createdAt: new Date().toLocaleDateString()
                     }));
-                    setComments([...comments, ...mappedComments]);
+                    setComments(mappedComments);
                 }
             } else {
-                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
+                setError(data?.error || "Failed to load post.");
             }
-        } catch (e) {
+        } catch {
             setError("Network error. Please try again.");
         } finally {
             setLoading(false);
         }
-    }
+    };
+
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
         
@@ -78,60 +86,68 @@ function Comment() {
             const data = await resp.json().catch(() => null);
             if (resp.ok && data && data.comment) {
                 // Add the new comment to the list
-                const comment = {
+                const comment: CommentItem = {
                     id: data.comment.id,
                     text: data.comment.message,
                     poster: data.comment.poster,
+                    createdAt: new Date().toLocaleDateString()
                 };
                 setComments([...comments, comment]);
                 setNewComment("");
             } else {
                 setError((data && data.error) || "Failed to create comment");
             }
-        } catch (e) {
+        } catch {
             setError("Network error. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        handleGetPostInfo();
-    }, [postId]);
-
     return (
         <div className="comment-container">
-            <nav>
-                <ul>
-                    <li><Link to="/">Sign Out</Link></li>
-                    <li><Link to="/dashboard">Dashboard</Link></li>
-                    <li><Link to={`/forum/${forumId}`}>Back to Posts</Link></li>
-                </ul>
-            </nav>
+            <Navbar />
+            <div className="comment-header">
+                <h2>{postTitle}</h2>
+                <div className="comment-breadcrumb">
+                    <Link to="/forum">Forums</Link> <span>/</span>
+                    <Link to={`/forum/${forumId}`}>{forumId}</Link> <span>/</span>
+                    <span>{postTitle}</span>
+                </div>
+            </div>
 
-            <h2>{postTitle} - {postAuthor}</h2>
-            <div>{postBody}</div>
-            {error && (
-                <div className="disclaimer" style={{ color: '#b00020', marginTop: '8px' }}>{error}</div>
-            )}
+            {error && <p className="error-text">{error}</p>}
+
+            {/* Highlight main post */}
+            <div className="featured-post">
+                <p className="featured-content">{postBody}</p>
+                <div className="featured-meta">
+                    Posted by <strong>{postAuthor}</strong>
+                </div>
+            </div>
+
+            {/* Comments */}
+            <ul className="comments-list">
+                {comments.map((comment) => (
+                    <li key={comment.id} className="comment-item">
+                        <div className="comment-body">{comment.text}</div>
+                        <div className="comment-meta">
+                            <span>{comment.poster}</span> • <span>{comment.createdAt}</span>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
             <div className="new-comment">
                 <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write a comment..."
+                    placeholder="Write a reply..."
                 />
                 <button onClick={handleAddComment} disabled={loading}>
-                    {loading ? 'Adding...' : 'Add Comment'}
+                    {loading ? "Posting..." : "Add Comment"}
                 </button>
             </div>
-
-            <ul className="comments-list">
-                {comments.map((comment) => (
-                    <li key={comment.id}>
-                        {comment.text} — <strong>{comment.poster}</strong>
-                    </li>
-                ))}
-            </ul>
         </div>
     );
 }
