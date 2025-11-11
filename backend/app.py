@@ -148,11 +148,15 @@ def create_forum():
 
     # Attempt to create a new forum
     try:
-        creator = User.load_by_email(creator_email)
-        if creator is None:
-            return jsonify({'error': 'Creator not found'}), 404
-
-        new_forum = Forum(course_name, creator)
+        new_forum = Forum(course_name)
+        
+        # If creator_email is provided, add them as a member
+        if creator_email:
+            creator = User.load_by_email(creator_email)
+            if creator:
+                creator.addForum(new_forum)
+                new_forum.addUser(creator)
+        
         return jsonify({'message': 'Forum created successfully', 'forum': _serialize_forum(new_forum)}), 201
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
@@ -199,8 +203,8 @@ def get_post_profile(post_id):
 
     return jsonify(_serialize_post(post)), 200
     
-@app.route('/api/forums/<int:forum_id>/posts', methods=['POST', 'OPTIONS'])
-def get_forum_posts(forum_id):
+@app.route('/api/forums/<int:forum_id>/posts', methods=['GET', 'POST', 'OPTIONS'])
+def forum_posts(forum_id):
     if request.method == 'OPTIONS':
         return ('', 204)
 
@@ -208,12 +212,57 @@ def get_forum_posts(forum_id):
     if forum is None:
         return jsonify({'error': 'Forum not found'}), 404
 
-    posts = forum.getPosts()
-    serialized_posts = [_serialize_post(post) for post in posts]
-    return jsonify({'posts': serialized_posts}), 200
+    if request.method == 'GET':
+        posts = forum.getPosts()
+        serialized_posts = [_serialize_post(post) for post in posts]
+        return jsonify({'posts': serialized_posts}), 200
+    
+    # POST - Create new post
+    data = request.get_json(silent=True) or {}
+    title = data.get('title')
+    message = data.get('message')
+    user_email = data.get('user_email')
 
-@app.route('/api/posts/<int:post_id>/comments', methods=['POST', 'OPTIONS'])
-def get_post_comments(post_id):
+    # Debug logging
+    print(f"[DEBUG] POST request data: {data}")
+    print(f"[DEBUG] title={title}, message={message}, user_email={user_email}")
+
+    if not title or not isinstance(title, str):
+        print(f"[DEBUG] Title validation failed: title={title}, type={type(title)}")
+        return jsonify({'error': 'A valid title is required'}), 400
+    if not message or not isinstance(message, str):
+        print(f"[DEBUG] Message validation failed: message={message}, type={type(message)}")
+        return jsonify({'error': 'A valid message is required'}), 400
+    if not user_email or not isinstance(user_email, str):
+        print(f"[DEBUG] Email validation failed: user_email={user_email}, type={type(user_email)}")
+        return jsonify({'error': 'User email is required'}), 400
+
+    user = User.load_by_email(user_email)
+    if user is None:
+        print(f"[DEBUG] User not found: {user_email}")
+        return jsonify({'error': 'User not found'}), 404
+
+    # Check if user is member of forum (compare by db_id, not object identity)
+    user_forums = user.getforums()
+    user_forum_ids = [f.db_id for f in user_forums]
+    print(f"[DEBUG] User {user.username} forums: {user_forum_ids}, checking forum {forum.db_id}")
+    if forum.db_id not in user_forum_ids:
+        print(f"[DEBUG] Membership check failed")
+        return jsonify({'error': 'User is not a member of this forum'}), 403
+
+    try:
+        new_post = Post(poster=user, message=message, title=title)
+        user.addPost(forum, new_post)
+        print(f"[DEBUG] Post created successfully: {new_post.title}")
+        return jsonify({'message': 'Post created successfully', 'post': _serialize_post(new_post)}), 201
+    except (ValueError, TypeError) as e:
+        print(f"[DEBUG] Exception creating post: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET', 'POST', 'OPTIONS'])
+def post_comments(post_id):
     if request.method == 'OPTIONS':
         return ('', 204)
 
@@ -221,9 +270,44 @@ def get_post_comments(post_id):
     if post is None:
         return jsonify({'error': 'Post not found'}), 404
 
-    comments = post.getComments()
-    serialized_comments = [_serialize_post(comment) for comment in comments]
-    return jsonify({'comments': serialized_comments}), 200
+    if request.method == 'GET':
+        comments = post.getcomments()
+        serialized_comments = [_serialize_post(comment) for comment in comments]
+        return jsonify({'comments': serialized_comments}), 200
+    
+    # POST - Create new comment
+    data = request.get_json(silent=True) or {}
+    message = data.get('message')
+    user_email = data.get('user_email')
+    parent_comment_id = data.get('parent_comment_id')  # Optional for nested comments
+
+    if not message or not isinstance(message, str):
+        return jsonify({'error': 'A valid message is required'}), 400
+    if not user_email or not isinstance(user_email, str):
+        return jsonify({'error': 'User email is required'}), 400
+
+    user = User.load_by_email(user_email)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    try:
+        from backend.Messages import Comment
+        
+        # Determine the parent (either the post or another comment)
+        if parent_comment_id:
+            parent = Post.load_by_id(parent_comment_id)
+            if parent is None:
+                return jsonify({'error': 'Parent comment not found'}), 404
+        else:
+            # Top-level comment - parent is the post
+            parent = post
+        
+        # Create the comment with the parent
+        new_comment = Comment(poster=user, message=message, title="Comment", parent=parent)
+        
+        return jsonify({'message': 'Comment created successfully', 'comment': _serialize_post(new_comment)}), 201
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)

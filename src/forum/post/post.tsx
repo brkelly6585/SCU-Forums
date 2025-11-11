@@ -10,6 +10,7 @@ function Post() {
         { id: "0", title: "Welcome to the forum!", poster: "Admin" },
     ]);
     const [newPostTitle, setNewPostTitle] = useState("");
+    const [newPostMessage, setNewPostMessage] = useState("");
     const [error, setError] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
     const [forumTitle, setForumTitle] = useState<string>("");
@@ -43,15 +44,55 @@ function Post() {
             setLoading(false);
         }
     }
-    const handleAddPost = () => {
-        if (!newPostTitle.trim()) return;
-        const newPost = {
-            id: Date.now().toString(),
-            title: newPostTitle,
-            poster: "CurrentUser",
-        };
-        setPosts([...posts, newPost]);
-        setNewPostTitle("");
+    const handleAddPost = async () => {
+        if (!newPostTitle.trim() || !newPostMessage.trim()) {
+            setError("Please enter both a title and message");
+            return;
+        }
+        
+        setError("");
+        setLoading(true);
+        
+        try {
+            // Get user from session storage
+            const stored = sessionStorage.getItem('user');
+            if (!stored) {
+                setError("You must be logged in to create a post");
+                setLoading(false);
+                return;
+            }
+            
+            const user = JSON.parse(stored);
+            
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${forumId}/posts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: newPostTitle,
+                    message: newPostMessage,
+                    user_email: user.email
+                })
+            });
+            
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data && data.post) {
+                // Add the new post to the list
+                const newPost = {
+                    id: data.post.id,
+                    title: data.post.title,
+                    poster: data.post.poster,
+                };
+                setPosts([...posts, newPost]);
+                setNewPostTitle("");
+                setNewPostMessage("");
+            } else {
+                setError((data && data.error) || "Failed to create post");
+            }
+        } catch (e) {
+            setError("Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -80,7 +121,15 @@ function Post() {
                     onChange={(e) => setNewPostTitle(e.target.value)}
                     placeholder="Enter post title..."
                 />
-                <button onClick={handleAddPost}>Add Post</button>
+                <textarea
+                    value={newPostMessage}
+                    onChange={(e) => setNewPostMessage(e.target.value)}
+                    placeholder="Enter post message..."
+                    rows={3}
+                />
+                <button onClick={handleAddPost} disabled={loading}>
+                    {loading ? 'Adding...' : 'Add Post'}
+                </button>
             </div>
 
             <ul className="posts-list">

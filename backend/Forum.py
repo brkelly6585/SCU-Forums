@@ -87,7 +87,9 @@ class Forum:
             f.course_name = forum_model.course_name
             f.forum_id = int(forum_model.id)
             f.posts = []
-            f.users = []
+            # Load users from the forum_model's users relationship
+            from backend.User import User
+            f.users = [User.from_model(user_model) for user_model in forum_model.users]
             f.authorized = []
             f.restricted = []
             f.db_id = int(forum_model.id)
@@ -228,9 +230,15 @@ class Forum:
     def addPost(self, post: Post) -> None:
         if not isinstance(post, Post):
             raise TypeError("post must be a Post instance")
-        if post.poster not in self.users:
+        # Check membership by db_id instead of object identity
+        user_ids = [u.db_id for u in self.users]
+        print(f"[FORUM DEBUG] Checking if poster {post.poster.db_id} is in forum users {user_ids}")
+        print(f"[FORUM DEBUG] Forum users objects: {[(u.username, u.db_id) for u in self.users]}")
+        if post.poster.db_id not in user_ids:
             raise ValueError("post author must be a member of the forum")
-        if post.poster in self.restricted:
+        # Check if user is restricted (also by db_id)
+        restricted_ids = [u.db_id for u in self.restricted]
+        if post.poster.db_id in restricted_ids:
             raise ValueError("restricted users cannot add posts")
         if post not in self.posts:
             self.posts.append(post)

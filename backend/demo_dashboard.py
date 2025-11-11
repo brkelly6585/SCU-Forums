@@ -173,7 +173,7 @@ def main():
     print_section("DASHBOARD DEMO: Simulating User Logins")
     
     # Simulate each user logging in and viewing their dashboard
-    print_user_dashboard("bkell@scu.edu")
+    print_user_dashboard("bkelly@scu.edu")
     print("\n" + "-"*70)
     
     print_user_dashboard("kkang@scu.edu")
@@ -185,7 +185,7 @@ def main():
     print("   All users successfully logged in and viewed their dashboards!")
     print("   Each user sees only the forums they're enrolled in and relevant posts.")
     print("\n   You can now test the React frontend with any of these emails:")
-    print("      - bkell@scu.edu")
+    print("      - bkelly@scu.edu")
     print("      - kkang@scu.edu")
     print("      - jhunter@scu.edu")
     print()

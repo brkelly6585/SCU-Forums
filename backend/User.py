@@ -174,6 +174,11 @@ class User:
             session.close()
 
     @classmethod
+    def load_by_id(cls, user_id: int):
+        """Alias for load_by_db_id for consistency with other models."""
+        return cls.load_by_db_id(user_id)
+
+    @classmethod
     def load_by_username(cls, username: str):
         """Load a User wrapper from the DB by username (returns None if not found)."""
         session = SessionLocal()

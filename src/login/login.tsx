@@ -19,7 +19,24 @@ function Login() {
             return;
         }
         setLoading(true);
-        
+        try {
+            const resp = await fetch("http://127.0.0.1:5000/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data) {
+                sessionStorage.setItem("user", JSON.stringify(data));
+                navigate("/dashboard");
+            } else {
+                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
+            }
+        } catch (e) {
+            setError("Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
     return (
         <div className="login">

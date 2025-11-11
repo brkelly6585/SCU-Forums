@@ -14,9 +14,9 @@ class TestLoginEndpoint(unittest.TestCase):
         self.year = 2
 
     def test_login_returns_forums_and_posts_by_email(self):
-        # 1) Create a new user via login endpoint
+        # 1) Create a new user via create_user endpoint
         resp_create = self.client.post(
-            "/api/login",
+            "/api/create_user",
             json={
                 "email": self.email,
                 "username": self.username,

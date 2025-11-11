@@ -32,7 +32,13 @@ function Comment() {
                 setPostBody(data.message);
                 setPostAuthor(data.poster);
                 if(data.comments && data.comments.length > 0){
-                    setComments([...comments, ...data.comments]);
+                    // Map backend comments to frontend format
+                    const mappedComments = data.comments.map((c: any) => ({
+                        id: c.id,
+                        text: c.message,
+                        poster: c.poster
+                    }));
+                    setComments([...comments, ...mappedComments]);
                 }
             } else {
                 setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
@@ -43,15 +49,50 @@ function Comment() {
             setLoading(false);
         }
     }
-    const handleAddComment = () => {
+    const handleAddComment = async () => {
         if (!newComment.trim()) return;
-        const comment = {
-            id: Date.now().toString(),
-            text: newComment,
-            poster: "CurrentUser",
-        };
-        setComments([...comments, comment]);
-        setNewComment("");
+        
+        setError("");
+        setLoading(true);
+        
+        try {
+            // Get user from session storage
+            const stored = sessionStorage.getItem('user');
+            if (!stored) {
+                setError("You must be logged in to comment");
+                setLoading(false);
+                return;
+            }
+            
+            const user = JSON.parse(stored);
+            
+            const resp = await fetch(`http://127.0.0.1:5000/api/posts/${postId}/comments`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: newComment,
+                    user_email: user.email
+                })
+            });
+            
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data && data.comment) {
+                // Add the new comment to the list
+                const comment = {
+                    id: data.comment.id,
+                    text: data.comment.message,
+                    poster: data.comment.poster,
+                };
+                setComments([...comments, comment]);
+                setNewComment("");
+            } else {
+                setError((data && data.error) || "Failed to create comment");
+            }
+        } catch (e) {
+            setError("Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -70,13 +111,18 @@ function Comment() {
 
             <h2>{postTitle} - {postAuthor}</h2>
             <div>{postBody}</div>
+            {error && (
+                <div className="disclaimer" style={{ color: '#b00020', marginTop: '8px' }}>{error}</div>
+            )}
             <div className="new-comment">
                 <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Write a comment..."
                 />
-                <button onClick={handleAddComment}>Add Comment</button>
+                <button onClick={handleAddComment} disabled={loading}>
+                    {loading ? 'Adding...' : 'Add Comment'}
+                </button>
             </div>
 
             <ul className="comments-list">
