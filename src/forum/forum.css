@@ -160,6 +160,7 @@
 
 /* Responsive Layout */
 @media (max-width: 850px) {
+
   .forums-header-row,
   .forums-row {
     grid-template-columns: 2.5fr 1fr 1fr;

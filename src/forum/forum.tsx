@@ -21,34 +21,34 @@ function Forum() {
     return saved
       ? JSON.parse(saved)
       : [
-          {
-            id: "CSEN174",
-            title: "Computer Science 174",
-            description: "Algorithms & Abstract Data Types",
-            threads: 12,
-            posts: 54,
-            comments: 132,
-            lastActivity: "3 hours ago",
-          },
-          {
-            id: "CSEN160",
-            title: "Computer Science 160",
-            description: "Computer Networks and Communication",
-            threads: 8,
-            posts: 31,
-            comments: 78,
-            lastActivity: "yesterday",
-          },
-          {
-            id: "ENG301",
-            title: "English 301",
-            description: "Advanced Composition and Rhetoric",
-            threads: 5,
-            posts: 17,
-            comments: 49,
-            lastActivity: "2 days ago",
-          },
-        ];
+        {
+          id: "CSEN174",
+          title: "Computer Science 174",
+          description: "Algorithms & Abstract Data Types",
+          threads: 12,
+          posts: 54,
+          comments: 132,
+          lastActivity: "3 hours ago",
+        },
+        {
+          id: "CSEN160",
+          title: "Computer Science 160",
+          description: "Computer Networks and Communication",
+          threads: 8,
+          posts: 31,
+          comments: 78,
+          lastActivity: "yesterday",
+        },
+        {
+          id: "ENG301",
+          title: "English 301",
+          description: "Advanced Composition and Rhetoric",
+          threads: 5,
+          posts: 17,
+          comments: 49,
+          lastActivity: "2 days ago",
+        },
+      ];
   });
 
   const [newClassName, setNewClassName] = useState("");

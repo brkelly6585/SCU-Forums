@@ -1,19 +1,86 @@
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
+.dashboard-page {
+    background-color: #f8f9fb;
+    min-height: 100vh;
 }
 
-.dashboard {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+.dashboard-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    padding: 2rem 4rem;
 }
 
-.dashboard-main {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  padding-top: 3.5rem; /* was 2rem, clears nav a bit more */
+.section-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+}
+
+.section-subtitle {
+    color: #777;
+    margin-bottom: 1.5rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.data-table thead {
+    background-color: #f2f4f8;
+}
+
+.data-table th,
+.data-table td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table th {
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.post-link,
+.forum-link {
+    color: #0066cc;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.post-link:hover,
+.forum-link:hover {
+    text-decoration: underline;
+}
+
+.forum-desc {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.empty-state {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
 }
