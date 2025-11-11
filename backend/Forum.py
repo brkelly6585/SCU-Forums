@@ -110,6 +110,19 @@ class Forum:
         finally:
             session.close()
     
+    @classmethod
+    def load_all_forums(cls) -> List['Forum']:
+        """Load all Forum wrappers from the DB."""
+        session = SessionLocal()
+        try:
+            forum_models = session.query(ForumModel).all()
+            forums = []
+            for forum_model in forum_models:
+                forums.append(cls.from_model(forum_model, session=session))
+            return forums
+        finally:
+            session.close()
+    
     def addUser(self, user: User) -> None:
         if not isinstance(user, User):
             raise TypeError("user must be a User instance")
