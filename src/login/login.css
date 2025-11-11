@@ -1,71 +1,74 @@
-html, body, #root {
-    height: 100%;
-    margin: 0;
+.login-page {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f6f8fa;
 }
 
-.login {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+.login-card {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 2.5rem 3rem;
+  width: 400px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-.login-container {
-    width: 40vw;
-    height: 40vh;
-    background-color: #f0f0f0;
-    border-radius: 16px;
-    border: 2px solid black;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+.login-card h1 {
+  margin-bottom: 1.5rem;
+  color: #24292f;
 }
 
-.input-box {
-    margin: 5px;
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: left;
 }
 
-.input-label {
-    margin-right: 5px;
+.login-form label {
+  font-weight: 600;
 }
 
-.input-text {
-    width: 60%;
-    height: 20px;
-    border-radius: 20px;
-    padding-left: 10px;
+.login-form input {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  outline: none;
 }
 
-.disclaimer {
-    font-size: 1vh;
-    font-style: italic;
-    color: rgb(85, 85, 85);
+.login-form input:focus {
+  border-color: var(--primary);
 }
 
-.login-submit{
-    border-radius: 16px;
-    border: 2px solid black;
-    height: fit-content;
-    width: fit-content;
-    padding: 6px;
+.login-form small {
+  font-size: 0.8rem;
+  color: #6a737d;
 }
 
-.login-box{
-    display: flex;
-    justify-content: center;
-}
-.login-text{
-    margin: 0;
-    font-weight: bold;
-    color: black;
-    text-decoration: none;
+.login-error {
+  color: #b00020;
+  font-size: 0.9rem;
 }
 
-.login-text:visited{
-    color:black;
-    text-decoration: none;
+button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 0.5rem;
 }
 
-.login-text:hover{
-    text-decoration: underline;
+button:hover {
+  background-color: var(--tertiary);
 }

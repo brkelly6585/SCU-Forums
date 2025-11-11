@@ -1,53 +1,36 @@
 :root {
-    --primary: #e74c3c;
-    /* Main red */
-    --secondary: #f8d7d7;
-    /* Light background red */
-    --tertiary: #b03a2e;
-    /* Darker shade for hover */
-    --text: #222;
-    /* Text color */
-  }
-  
-.hidden {
-    display: none;
+  --primary: #e74c3c;
+  --secondary: #f8d7d7;
+  --tertiary: #b03a2e;
+  --text: #222;
+  --nav-height: 60px;
+  --nav-padding: 1.5rem;
 }
 
-nav {
-    background-color: var(--primary);
-    display: flex;
-    justify-content: flex-end;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-  }
-  
-  nav ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-  }
-  
-  nav li {
-    margin-right: 1rem;
-  }
-  
-  nav a {
-    color: white;
-    text-decoration: none;
-    padding: 1rem 1rem;
-    display: inline-block;
-    font-weight: 600;
-  }
-  
-  nav a:hover {
-    background-color: var(--tertiary);
-  }
-  
-  .active {
-    background-color: var(--tertiary);
-  }
-  
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  background-color: #f6f8fa;
+  color: var(--text);
+  overflow-y: scroll;
+}
+
+main,
+.dashboard,
+.profile-container,
+.forum-container,
+.post-container,
+.comment-container {
+  padding-top: calc(var(--nav-height) + 2rem);
+  box-sizing: border-box;
+}
+
+/* Links */
+a {
+  color: #0969da;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
