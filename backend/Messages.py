@@ -276,6 +276,18 @@ class Post:
         finally:
             if close_session:
                 session.close()
+    
+    @classmethod
+    def load_by_id(cls, post_id: int):
+        """Load a Post wrapper from the DB by post ID (returns None if not found)."""
+        session = SessionLocal()
+        try:
+            post_model = session.query(PostModel).filter(PostModel.id == post_id).first()
+            if post_model is None:
+                return None
+            return cls.from_model(post_model, session=session)
+        finally:
+            session.close()
 
 
 class Comment(Post):

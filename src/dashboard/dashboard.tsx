@@ -11,11 +11,13 @@ function Dashboard() {
         if (stored) {
             try {
                 setUser(JSON.parse(stored));
+                console.log(JSON.parse(stored));
             } catch {
                 setUser(null);
             }
         }
     }, []);
+
 
     const recentPosts = useMemo(() => {
         if (!user?.forums) return [] as any[];
@@ -62,7 +64,7 @@ function Dashboard() {
 
                 {(user?.forums || []).map((forum: any) => (
                     <div key={forum.id} className="dashboard-comp">
-                        <Link className="title-link" to={`/forum/${forum.course_name}`}>
+                        <Link className="title-link" to={`/forum/${forum.id}`}>
                             <h1 className="forum-title">{forum.course_name}</h1>
                         </Link>
                         <h2 className="forum-subtitle">Your forum</h2>

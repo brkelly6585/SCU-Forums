@@ -63,9 +63,9 @@ def _serialize_post(post: Post):
                 'reaction_type': reaction.reaction_type,
                 'user': reaction.user.username if reaction.user else None
             }
-            for reaction in post.getReactions()
+            for reaction in post.getreactions()
         ],
-        'comments': [_serialize_post(comment) for comment in post.getComments()]
+        'comments': [_serialize_post(comment) for comment in post.getcomments()]
     }
 
 @app.route('/api/login', methods=['POST', 'OPTIONS'])

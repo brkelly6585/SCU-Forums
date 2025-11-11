@@ -111,6 +111,18 @@ class Forum:
             session.close()
     
     @classmethod
+    def load_by_id(cls, course_id: int):
+        """Load a Forum wrapper from the DB by course ID (returns None if not found)."""
+        session = SessionLocal()
+        try:
+            forum_model = session.query(ForumModel).filter(ForumModel.id == course_id).first()
+            if forum_model is None:
+                return None
+            return cls.from_model(forum_model, session=session)
+        finally:
+            session.close()
+    
+    @classmethod
     def load_all_forums(cls) -> List['Forum']:
         """Load all Forum wrappers from the DB."""
         session = SessionLocal()

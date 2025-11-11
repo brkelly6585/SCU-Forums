@@ -1,26 +1,64 @@
-import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import "./post.css";
 import "../../base.css";
 
 function Post() {
+    const navigate = useNavigate();
     const { forumId } = useParams();
     const [posts, setPosts] = useState([
-        { id: "1", title: "Welcome to the forum!", author: "Admin" },
+        { id: "0", title: "Welcome to the forum!", poster: "Admin" },
     ]);
     const [newPostTitle, setNewPostTitle] = useState("");
+    const [error, setError] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(false);
+    const [forumTitle, setForumTitle] = useState<string>("");
 
+    const handleGetPosts = async () => {
+        setError("");
+        if(!forumId){
+            setError("Please enter a valid forum");
+            return;
+        }
+        setLoading(true);
+        try {
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${Number(forumId)}`)
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data) {
+                //sessionStorage.setItem("user", JSON.stringify(data));
+                //navigate("/dashboard");
+                console.log(data);
+                if(data.course_name){
+                    setForumTitle(data.course_name);
+                }
+                if(data.posts){
+                    setPosts([...posts, ...data.posts]);
+                }
+            } else {
+                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
+            }
+        } catch (e) {
+            setError("Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    }
     const handleAddPost = () => {
         if (!newPostTitle.trim()) return;
         const newPost = {
             id: Date.now().toString(),
             title: newPostTitle,
-            author: "CurrentUser",
+            poster: "CurrentUser",
         };
         setPosts([...posts, newPost]);
         setNewPostTitle("");
     };
 
+    useEffect(() => {
+        handleGetPosts();
+    }, [forumId])
+
+    
     return (
         <div className="post-container">
             <nav>
@@ -31,8 +69,10 @@ function Post() {
                 </ul>
             </nav>
 
-            <h2>Posts for {forumId}</h2>
-
+            <h2>Posts for {forumTitle}</h2>
+            {error && (
+                <div className="disclaimer" style={{ color: '#b00020', marginTop: '8px' }}>{error}</div>
+            )}
             <div className="new-post">
                 <input
                     type="text"
@@ -47,7 +87,7 @@ function Post() {
                 {posts.map((post) => (
                     <li key={post.id}>
                         <Link to={`/forum/${forumId}/post/${post.id}`}>{post.title}</Link>
-                        <span> — {post.author}</span>
+                        <span> — {post.poster}</span>
                     </li>
                 ))}
             </ul>

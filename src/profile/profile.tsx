@@ -5,16 +5,39 @@ import { useEffect, useState } from "react";
 
 function Profile() {
     const [infoToggle, setToggle] = useState(true);
-    const [fName, setFName] = useState("James");
-    const [lName, setLName] = useState("Hunter");
-    const [major, setMajor] = useState("CSEN");
-    const [minor, setMinor] = useState("N/A");
-    const [email, setEmail] = useState("jhunter@scu.edu");
-    const [grade, setGrade] = useState("Senior");
+    const [fName, setFName] = useState("");
+    const [lName, setLName] = useState("");
+    const [major, setMajor] = useState("");
+    //const [minor, setMinor] = useState("");
+    const [email, setEmail] = useState("");
+    const [grade, setGrade] = useState("");
+    const [username, setUsername] = useState("");
     const [courses, setCourses] = useState("CSEN174, CSEN160, HIST79");
     const [interests, setInterests] = useState("N/A");
+    const [error, setError] = useState<string>("");
+    const [user, setUser] = useState<any | null>(null);
+
+    const handleGetProfile = async () => {
+        setError("");
+        const stored = sessionStorage.getItem('user');
+        if (stored) {
+            try {
+                const userJSON = JSON.parse(stored);
+                setUser(userJSON);
+                console.log(userJSON)
+                if (userJSON.email && userJSON.email.length > 0) setEmail(userJSON.email);
+                if (userJSON.major && userJSON.major.length > 0) setMajor(userJSON.major);
+                if (userJSON.year && userJSON.year > 0) setGrade(userJSON.year);
+                if (userJSON.username && userJSON.username.length > 0) setUsername(userJSON.username);
+
+            } catch {
+                setUser(null);
+            }
+        }
+    }
     useEffect(() => {
-        document.title = "Profile"
+        document.title = "Profile";
+        handleGetProfile();
     }, []);
     return (
         <div className="profile">
@@ -51,21 +74,21 @@ function Profile() {
                                     className="sec-value" />
                             </div>
                             <div className="info-section">
+                                <label className="sec-name">Username:</label>
+                                <input 
+                                    type="text" 
+                                    disabled={infoToggle}
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="sec-value" />
+                            </div>
+                            <div className="info-section">
                                 <label className="sec-name">Major:</label>
                                 <input 
                                     type="text" 
                                     disabled={infoToggle}
                                     value={major}
                                     onChange={(e) => setMajor(e.target.value)}
-                                    className="sec-value" />
-                            </div>
-                            <div className="info-section">
-                                <label className="sec-name">Minor:</label>
-                                <input 
-                                    type="text" 
-                                    disabled={infoToggle}
-                                    value={minor}
-                                    onChange={(e) => setMinor(e.target.value)}
                                     className="sec-value" />
                             </div>
                         </div>
@@ -80,7 +103,7 @@ function Profile() {
                                     className="sec-value" />
                             </div>
                             <div className="info-section">
-                                <label className="sec-name">Grade:</label>
+                                <label className="sec-name">Year:</label>
                                 <input 
                                     type="text" 
                                     disabled={infoToggle}
