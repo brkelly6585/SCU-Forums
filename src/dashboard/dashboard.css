@@ -1,95 +1,19 @@
-html, body, #root {
-    height: 100%;
-    margin: 0;
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
 }
 
 .dashboard {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
-.dashboard-main{
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    padding-top: 2.0rem;
-}
-
-.dashboard-comp{
-    margin: 40px;
-    width: 30%;
-    background-color: #f0f0f0;
-    border-radius: 16px;
-    border: 2px solid black;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-}
-
-.forum-title{
-    margin-bottom: 0;
-}
-
-.forum-title:hover{
-    text-decoration: underline;
-    cursor: pointer;
-}
-
-.forum-subtitle{
-    margin-top: 0;
-    font-weight: normal;
-}
-
-.forum-info{
-    text-align: left;
-    margin-left: 20px;
-}
-
-hr{
-    border: 1px solid rgb(112, 112, 112);
-    width: 95%;
-}
-
-.post-comp{
-    border-radius: 16px;
-    border: 2px solid black;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    margin-left: 10px;
-    margin-right: 10px;
-    display: flex;
-    justify-content: flex-start;
-    text-align: left;
-    flex-direction: column;
-    padding: 10px;
-    cursor: pointer;
-}
-
-.post-title{
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.post-subtitle{
-    font-size: 1rem;
-    color: rgb(85, 85, 85)
-}
-
-.post-subtitle{
-    font-size: 1rem;
-}
-
-.title-link{
-    color:black;
-    text-decoration: none;
-}
-
-.title-link:visited{
-    color:black;
-    text-decoration: none;
-}
-
-.title-link:hover{
-    text-decoration: underline;
+.dashboard-main {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  padding-top: 3.5rem; /* was 2rem, clears nav a bit more */
 }
