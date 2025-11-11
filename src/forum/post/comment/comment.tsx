@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import Navbar from "../../../Navbar.tsx";
 import "./comment.css";
 import "../../../base.css";
@@ -7,107 +7,116 @@ import "../../../base.css";
 interface CommentItem {
   id: string;
   text: string;
-  author: string;
+  poster: string;
   createdAt: string;
 }
 
 function Comment() {
-    const navigate = useNavigate();
   const { forumId, postId } = useParams();
-  const [comments, setComments] = useState<CommentItem[]>([
-    {
-      id: "0",
-      text: "Thanks for the post!",
-      poster: "User1",
-      createdAt: "2025-11-03",
-    },
-  ]);
+  const [postTitle, setPostTitle] = useState<string>("");
+  const [postBody, setPostBody] = useState<string>("");
+  const [postAuthor, setPostAuthor] = useState<string>("");
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     document.title = `Post ${postId} • ${forumId}`;
-  }, [forumId, postId]);
-    const [error, setError] = useState<string>("");
-    const [loading, setLoading] = useState<boolean>(false);
-    const [postTitle, setPostTitle] = useState<string>("");
-    const [postBody, setPostBody] = useState<string>("");
-    const [postAuthor, setPostAuthor] = useState<string>("");
+    handleGetPostInfo();
+  }, [postId]);
 
-    const handleGetPostInfo = async () => {
-        setError("");
-        if(!postId) {
-            setError("Please enter a valid post");
-            return;
-        }
-        setLoading(true);
-        try {
-            const resp = await fetch(`http://127.0.0.1:5000/api/posts/${Number(postId)}`)
-            const data = await resp.json().catch(() => null);
-            if (resp.ok && data) {
-                console.log(data);
-                setPostTitle(data.title);
-                setPostBody(data.message);
-                setPostAuthor(data.poster);
-                if(data.comments && data.comments.length > 0){
-                    setComments([...comments, ...data.comments]);
-                }
-            } else {
-                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
-            }
-        } catch (e) {
-            setError("Network error. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+  const handleGetPostInfo = async () => {
+    setError("");
+    if (!postId) return;
+    setLoading(true);
+    try {
+      const resp = await fetch(`http://127.0.0.1:5000/api/posts/${Number(postId)}`);
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data) {
+        setPostTitle(data.title);
+        setPostBody(data.message);
+        setPostAuthor(data.poster);
+        setComments(data.comments || []);
+      } else {
+        setError(data?.error || "Failed to load post.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    const comment: CommentItem = {
-      id: Date.now().toString(),
-      text: newComment,
-      poster: "CurrentUser",
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    setComments([...comments, comment]);
-    setNewComment("");
   };
 
-    useEffect(() => {
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      const resp = await fetch(`http://127.0.0.1:5000/api/comments/new`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId,
+          text: newComment,
+          poster: "CurrentUser",
+        }),
+      });
+
+      if (resp.ok) {
+        setNewComment("");
         handleGetPostInfo();
-    }, [postId]);
+      } else {
+        const data = await resp.json().catch(() => null);
+        setError(data?.error || "Failed to add comment.");
+      }
+    } catch {
+      setError("Network error while posting comment.");
+    }
+  };
 
   return (
     <div className="comment-container">
       <Navbar />
       <div className="comment-header">
-        <h2>Discussion</h2>
+        <h2>{postTitle}</h2>
         <div className="comment-breadcrumb">
-          <Link to="/forum">Forums</Link> <span>/</span>{" "}
-          <Link to={`/forum/${forumId}`}>{forumId}</Link> <span>/</span>{" "}
-          <span>Post {postId}</span>
+          <Link to="/forum">Forums</Link> <span>/</span>
+          <Link to={`/forum/${forumId}`}>{forumId}</Link> <span>/</span>
+          <span>{postTitle}</span>
         </div>
       </div>
 
-      <div className="new-comment">
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Reply to this thread…"
-        />
-        <button onClick={handleAddComment}>Add Comment</button>
+      {error && <p className="error-text">{error}</p>}
+
+      {/* Highlight main post */}
+      <div className="featured-post">
+        <p className="featured-content">{postBody}</p>
+        <div className="featured-meta">
+          Posted by <strong>{postAuthor}</strong>
+        </div>
       </div>
 
+      {/* Comments */}
       <ul className="comments-list">
         {comments.map((comment) => (
           <li key={comment.id} className="comment-item">
             <div className="comment-body">{comment.text}</div>
             <div className="comment-meta">
-              <span className="comment-author">{comment.author}</span>
-              <span className="comment-date">{comment.createdAt}</span>
+              <span>{comment.poster}</span> • <span>{comment.createdAt}</span>
             </div>
           </li>
         ))}
       </ul>
+
+      <div className="new-comment">
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          placeholder="Write a reply..."
+        />
+        <button onClick={handleAddComment} disabled={loading}>
+          {loading ? "Posting..." : "Add Comment"}
+        </button>
+      </div>
     </div>
   );
 }
