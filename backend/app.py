@@ -169,6 +169,29 @@ def list_forums():
     forums = Forum.load_all_forums()
     serialized_forums = [_serialize_forum(forum) for forum in forums]
     return jsonify({'forums': serialized_forums}), 200
+
+@app.route('/api/users/<int:user_id>/forums', methods=['POST', 'OPTIONS'])
+def user_add_forum(user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    data = request.get_json(silent=True) or {}
+    forum_id = data.get('forum_id')
+
+    user = User.load_by_id(user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+
+    try:
+        user.addForum(forum)
+        forum.addUser(user)
+        return jsonify({'message': 'User added to forum successfully'}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
     
 @app.route('/api/users/<int:user_id>', methods=['GET', 'OPTIONS'])
 def get_user_profile(user_id):
@@ -180,6 +203,35 @@ def get_user_profile(user_id):
         return jsonify({'error': 'User not found'}), 404
 
     return jsonify(_serialize_user(user)), 200
+
+@app.route('/api/users/<int:user_id>', methods=['POST', 'OPTIONS'])
+def update_user_profile(user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    user = User.load_by_id(user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    major = data.get('major')
+    year = data.get('year')
+
+    try:
+        if username and isinstance(username, str):
+            user.username = username
+        if major and isinstance(major, str):
+            user.major = major
+        if year is not None:
+            if isinstance(year, str) and year.isdigit():
+                year = int(year)
+            if isinstance(year, int):
+                user.year = year
+
+        return jsonify({'message': 'User profile updated successfully', 'user': _serialize_user(user)}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
 
 @app.route('/api/forums/<int:forum_id>', methods=['GET', 'OPTIONS'])
 def get_forum_profile(forum_id):
@@ -193,13 +245,17 @@ def get_forum_profile(forum_id):
     return jsonify(_serialize_forum(forum)), 200
 
 @app.route('/api/posts/<int:post_id>', methods=['GET', 'OPTIONS'])
-def get_post_profile(post_id):
+def get_post_profile(post_id, user_id=None, forum_id=None):
     if request.method == 'OPTIONS':
         return ('', 204)
 
     post = Post.load_by_id(post_id)
     if post is None:
         return jsonify({'error': 'Post not found'}), 404
+    if user_id is not None and (getattr(post, 'user_id', None) != user_id):
+        return jsonify({'error': 'Post does not belong to the specified user'}), 404
+    if forum_id is not None and (getattr(post, 'forum_id', None) != forum_id):
+        return jsonify({'error': 'Post does not belong to the specified forum'}), 404
 
     return jsonify(_serialize_post(post)), 200
     
@@ -308,6 +364,61 @@ def post_comments(post_id):
         return jsonify({'message': 'Comment created successfully', 'comment': _serialize_post(new_comment)}), 201
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
+    
+@app.route('/api/posts/<int:post_id>/reactions', methods=['POST', 'OPTIONS'])
+def post_reactions(post_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    post = Post.load_by_id(post_id)
+    if post is None:
+        return jsonify({'error': 'Post not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    reaction_type = data.get('reaction_type')
+    user_email = data.get('user_email')
+
+    if not reaction_type or not isinstance(reaction_type, str):
+        return jsonify({'error': 'A valid reaction type is required'}), 400
+    if not user_email or not isinstance(user_email, str):
+        return jsonify({'error': 'User email is required'}), 400
+
+    user = User.load_by_email(user_email)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    try:
+        from backend.Messages import Reaction
+        new_reaction = Reaction(reaction_type=reaction_type, user=user, parent=post)
+        return jsonify({'message': 'Reaction added successfully', 'reaction': {
+            'id': new_reaction.db_id,
+            'reaction_type': new_reaction.reaction_type,
+            'user': new_reaction.user.username if new_reaction.user else None
+        }}), 201
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+    
+@app.route('/api/posts/<int:post_id>/reactions', methods=['GET', 'OPTIONS'])
+def get_post_reactions(post_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    post = Post.load_by_id(post_id)
+    if post is None:
+        return jsonify({'error': 'Post not found'}), 404
+
+    reactions = post.getreactions()
+    serialized_reactions = [
+        {
+            'id': reaction.db_id,
+            'reaction_type': reaction.reaction_type,
+            'user': reaction.user.username if reaction.user else None
+        }
+        for reaction in reactions
+    ]
+    return jsonify({'reactions': serialized_reactions}), 200
+    
+    
 
 if __name__ == '__main__':
     app.run(debug=True)

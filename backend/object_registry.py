@@ -1,8 +1,8 @@
-"""Simple in-memory registry to preserve wrapper identity by db id.
+'''Simple in-memory registry to preserve wrapper identity by db id.
 
 This helps the test suite which expects the same Python wrapper objects
 to be returned after DB-backed loading.
-"""
+'''
 _REGISTRY = {}
 
 def register(kind: str, db_id: int, obj):

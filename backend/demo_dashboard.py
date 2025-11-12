@@ -1,8 +1,8 @@
-"""
+'''
 Multi-user dashboard demo via console.
 Seeds a few users with different forum memberships and posts,
 then simulates each user logging in and viewing their dashboard.
-"""
+'''
 import sys
 import os
 
@@ -16,13 +16,13 @@ from backend.Forum import Forum
 from backend.Messages import Post
 
 def print_section(title):
-    """Print a formatted section header."""
+    # Print a formatted section header
     print("\n" + "="*70)
     print(f"  {title}")
     print("="*70)
 
 def print_user_dashboard(email):
-    """Simulate a login and display the user's dashboard data."""
+    # Simulate a login and display the user's dashboard data
     print(f"\nLogging in as: {email}")
     user = User.load_by_email(email)
     
@@ -37,16 +37,16 @@ def print_user_dashboard(email):
     forums = user.getforums()
     print(f"\n   Enrolled Forums ({len(forums)}):")
     if not forums:
-        print("      (none)")
+        print("\t(none)")
     else:
         for forum in forums:
             posts_in_forum = forum.getPosts()
-            print(f"      - {forum.course_name} - {len(posts_in_forum)} posts")
+            print(f"\t- {forum.course_name} - {len(posts_in_forum)} posts")
     
     user_posts = user.getposts()
     print(f"\n   My Posts ({len(user_posts)}):")
     if not user_posts:
-        print("      (none)")
+        print("\t(none)")
     else:
         for post in user_posts:
             # Find which forum this post belongs to
@@ -55,8 +55,8 @@ def print_user_dashboard(email):
                 if post in forum.getPosts():
                     forum_name = forum.course_name
                     break
-            print(f"      - \"{post.title}\" in {forum_name}")
-            print(f"        > {post.message[:60]}{'...' if len(post.message) > 60 else ''}")
+            print(f"\t- \"{post.title}\" in {forum_name}")
+            print(f"\t > {post.message[:60]}{'...' if len(post.message) > 60 else ''}")
     
     # Show all posts across all forums (simulating "Recent Posts" on dashboard)
     print(f"\n   Recent Posts Across All Forums:")
@@ -66,12 +66,12 @@ def print_user_dashboard(email):
             all_posts.append((forum.course_name, post))
     
     if not all_posts:
-        print("      (none)")
+        print("\t(none)")
     else:
         for forum_name, post in all_posts[:5]:  # Limit to 5 most recent
             poster_name = post.poster.username if post.poster else "Unknown"
-            print(f"      - [{forum_name}] \"{post.title}\" by {poster_name}")
-            print(f"        > {post.message[:60]}{'...' if len(post.message) > 60 else ''}")
+            print(f"\t- [{forum_name}] \"{post.title}\" by {poster_name}")
+            print(f"\t > {post.message[:60]}{'...' if len(post.message) > 60 else ''}")
 
 def main():
     print_section("Setting up fresh database")
@@ -146,31 +146,31 @@ def main():
     
     post2 = Post(user2, "How do I set up a many-to-many relationship with an association table?", "SQLAlchemy relationship question")
     user2.addPost(forum_csen174, post2)
-    print(f"   > {user2.username} posted in {forum_csen174.course_name}: \"{post2.title}\"")
+    print(f"   > {user2.username} posted in {forum_csen174.course_name}: \"{post2.title}\"" )
     
     post3 = Post(user3, "Looking for interesting project ideas for our final. What has everyone done in the past?", "Team project ideas")
     user3.addPost(forum_csen174, post3)
-    print(f"   > {user3.username} posted in {forum_csen174.course_name}: \"{post3.title}\"")
+    print(f"   > {user3.username} posted in {forum_csen174.course_name}: \"{post3.title}\"" )
     
     # Posts in CSEN161
     post4 = Post(user2, "When should I use Grid vs Flexbox for layouts? I'm confused about best practices.", "CSS Grid vs Flexbox")
     user2.addPost(forum_csen161, post4)
-    print(f"   > {user2.username} posted in {forum_csen161.course_name}: \"{post4.title}\"")
+    print(f"   > {user2.username} posted in {forum_csen161.course_name}: \"{post4.title}\"" )
     
     post5 = Post(user3, "What's the best way to manage global state? Context API or Redux?", "React state management")
     user3.addPost(forum_csen161, post5)
-    print(f"   > {user3.username} posted in {forum_csen161.course_name}: \"{post5.title}\"")
+    print(f"   > {user3.username} posted in {forum_csen161.course_name}: \"{post5.title}\"" )
     
     # Posts in MATH51
-    post6 = Post(user1, "Can someone explain when to use integration by parts vs substitution?", "Integration by parts help")
+    post6 = Post(user1, "Can someone explain everything to me?", "Help")
     user1.addPost(forum_math51, post6)
-    print(f"   > {user1.username} posted in {forum_math51.course_name}: \"{post6.title}\"")
+    print(f"   > {user1.username} posted in {forum_math51.course_name}: \"{post6.title}\"" )
     
     post7 = Post(user3, "Anyone want to form a study group for the midterm next week?", "Study group for midterm")
     user3.addPost(forum_math51, post7)
-    print(f"   > {user3.username} posted in {forum_math51.course_name}: \"{post7.title}\"")
-    
-    print_section("DASHBOARD DEMO: Simulating User Logins")
+    print(f"   > {user3.username} posted in {forum_math51.course_name}: \"{post7.title}\"" )
+
+    print_section("Simulating User Logins")
     
     # Simulate each user logging in and viewing their dashboard
     print_user_dashboard("bkelly@scu.edu")
@@ -182,9 +182,9 @@ def main():
     print_user_dashboard("jhunter@scu.edu")
     
     print_section("Demo Complete")
-    print("   All users successfully logged in and viewed their dashboards!")
-    print("   Each user sees only the forums they're enrolled in and relevant posts.")
-    print("\n   You can now test the React frontend with any of these emails:")
+    print("   All users successfully logged in and viewed their dashboards")
+    print("   Each user sees only the forums they're enrolled in and relevant posts")
+    print("\n   React setup for these emails:")
     print("      - bkelly@scu.edu")
     print("      - kkang@scu.edu")
     print("      - jhunter@scu.edu")
