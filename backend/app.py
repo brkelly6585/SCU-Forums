@@ -2,8 +2,12 @@ from flask import Flask, request, jsonify
 from backend.User import User
 from backend.Forum import Forum
 from backend.Messages import Post
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 app = Flask(__name__)
+
+GOOGLE_ID = "437960362432-34e8ipa7a4ivuvu1jsq32u6qu6j51uf7.apps.googleusercontent.com"
 
 # Simple CORS headers for local React dev (adjust origin as needed)
 @app.after_request
@@ -86,6 +90,36 @@ def login():
         return jsonify(_serialize_user(user)), 200
     else:
         return jsonify({'error': 'User not found'}), 404
+
+@app.route('/api/googlelogin', methods=['POST', 'OPTIONS'])
+def googlelogin():
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    token = data.get('credential')
+    print(token)
+    try:
+        id_info = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+            GOOGLE_ID
+        )
+
+        email = id_info.get("email")
+        name = id_info.get("name")
+        google_user_id = id_info.get("sub")
+
+        if not email or not isinstance(email, str) or not email.endswith('@scu.edu'):
+            return jsonify({'error': 'A valid scu.edu email is required'}), 400
+        
+        user = User.load_by_email(email)
+        if user is not None:
+            return jsonify(_serialize_user(user)), 200
+        else:
+            return jsonify({'error': 'User not found'}), 404
+    except ValueError:
+        return jsonify({'error': 'Invalid Google token'}), 401
+    
     
 @app.route('/api/create_user', methods=['POST', 'OPTIONS'])
 def create_user():

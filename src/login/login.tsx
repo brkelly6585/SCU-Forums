@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./login.css";
 import "../base.css";
+import LoginButton from "./googleButton.tsx";
 
 function Login() {
     const navigate = useNavigate();
@@ -37,6 +38,30 @@ function Login() {
         }
     };
 
+    const handleGoogleLogin = async (response: any) => {
+        console.log("Credential:", response.credential);
+        console.log(response);
+        setLoading(true);
+        try {
+            const resp = await fetch("http://127.0.0.1:5000/api/googlelogin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ credential: response.credential })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data) {
+                sessionStorage.setItem("user", JSON.stringify(data));
+                navigate("/dashboard");
+            } else {
+                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
+            }
+        } catch {
+            setError("Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return (
         <div className="login-page">
             <div className="login-card">
@@ -53,6 +78,7 @@ function Login() {
                     <small>Note: please use your @scu.edu email</small>
                     {error && <p className="login-error">{error}</p>}
                 </div>
+                <LoginButton onSuccess={handleGoogleLogin} />
 
                 <button onClick={handleLogin} disabled={loading}>
                     {loading ? "Logging in..." : "Log in"}
