@@ -74,19 +74,22 @@ function Post() {
                         createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
                         is_deleted: p.is_deleted
                     })) as Thread[];
+                    console.log('Setting posts:', mapped);
                     setPosts(mapped);
                 }
                 if (data.users) {
                     const authorizedIds = (data.authorized_users || []).map((u: any) => u.id);
                     const restrictedIds = (data.restricted_users || []).map((u: any) => u.id);
-                    setUsers(data.users.map((u: any) => ({
+                    const mappedUsers = data.users.map((u: any) => ({
                         id: u.id,
                         username: u.username,
                         email: u.email,
                         is_admin: u.is_admin,
                         is_authorized: authorizedIds.includes(u.id),
                         is_restricted: restrictedIds.includes(u.id)
-                    })));
+                    }));
+                    console.log('Setting users:', mappedUsers);
+                    setUsers(mappedUsers);
                 }
             } else {
                 setError(data?.error || "Failed to load forum data.");
@@ -271,12 +274,16 @@ function Post() {
             {!role.isRestricted && (
                 <div className="posts-list-wrapper">
                     <div className="posts-list-header">
-                        <span className="col-title">Thread</span>
+                        <span className="col-title">Thread ({posts.length} posts)</span>
                         <span className="col-small">Replies</span>
                         <span className="col-small">Created</span>
                     </div>
                     <ul className="posts-list">
-                        {posts.map((post) => (
+                        {posts.length === 0 ? (
+                            <li style={{padding: '2rem', textAlign: 'center', color: '#6a737d'}}>
+                                No posts yet. Be the first to create one!
+                            </li>
+                        ) : posts.map((post) => (
                             <li key={post.id} className={`post-row ${post.is_deleted ? 'post-deleted' : ''}`}>
                                 <div className="post-main">
                                     <Link to={`/forum/${forumId}/post/${post.id}`} className="post-link">
@@ -292,11 +299,14 @@ function Post() {
                     </ul>
                 </div>
             )}
-            {!role.isRestricted && users.length > 0 && (
+            {!role.isRestricted && (
                 <div className="forum-users-panel">
-                    <h3>Members</h3>
-                    <ul className="forum-users-list">
-                        {users.map(u => (
+                    <h3>Members ({users.length})</h3>
+                    {users.length === 0 ? (
+                        <p style={{color: '#6a737d', fontSize: '0.9rem'}}>No members yet.</p>
+                    ) : (
+                        <ul className="forum-users-list">
+                            {users.map(u => (
                             <li key={u.id} className="forum-user-item">
                                 <div className="forum-user-row">
                                     <Link to={`/profile/${u.username}`} className="forum-user-link">
@@ -331,7 +341,8 @@ function Post() {
                                 )}
                             </li>
                         ))}
-                    </ul>
+                        </ul>
+                    )}
                 </div>
             )}
         </div>
