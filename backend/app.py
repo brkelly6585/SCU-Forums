@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 GOOGLE_ID = "437960362432-34e8ipa7a4ivuvu1jsq32u6qu6j51uf7.apps.googleusercontent.com"
 
-# Simple CORS headers for local React dev (adjust origin as needed)
+# Simple CORS headers
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -25,6 +25,7 @@ def _serialize_user(user: User):
         'major': user.major,
         'year': user.year,
         'is_deleted': user.is_deleted,
+        'is_admin': getattr(user, 'is_admin', False),
         'forums': [
             _serialize_forum(forum)
             for forum in user.getforums()
@@ -39,6 +40,7 @@ def _serialize_forum(forum: Forum):
     return {
         'id': forum.db_id,
         'course_name': forum.course_name,
+        'created_at': getattr(forum, 'created_at', None).isoformat() if getattr(forum, 'created_at', None) else None,
         'posts': [
             _serialize_post(post)
             for post in forum.getPosts()
@@ -47,9 +49,26 @@ def _serialize_forum(forum: Forum):
             {
                 'id': user.db_id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
+                'is_admin': getattr(user, 'is_admin', False)
             }
             for user in forum.getUsers()
+        ],
+        'authorized_users': [
+            {
+                'id': user.db_id,
+                'username': user.username,
+                'email': user.email
+            }
+            for user in getattr(forum, 'authorized', [])
+        ],
+        'restricted_users': [
+            {
+                'id': user.db_id,
+                'username': user.username,
+                'email': user.email
+            }
+            for user in getattr(forum, 'restricted', [])
         ]
     }
 
@@ -61,6 +80,7 @@ def _serialize_post(post: Post):
         'message': post.message,
         'poster': post.poster.username if post.poster else None,
         'is_deleted': post.is_deleted,
+        'created_at': getattr(post, 'created_at', None).isoformat() if getattr(post, 'created_at', None) else None,
         'reactions': [
             {
                 'id': reaction.db_id,
@@ -71,25 +91,6 @@ def _serialize_post(post: Post):
         ],
         'comments': [_serialize_post(comment) for comment in post.getcomments()]
     }
-
-@app.route('/api/login', methods=['POST', 'OPTIONS'])
-def login():
-    if request.method == 'OPTIONS':
-        return ('', 204)
-
-    # Necessary data from Frontend
-    data = request.get_json(silent=True) or {}
-    email = data.get('email')
-
-    if not email or not isinstance(email, str) or not email.endswith('@scu.edu'):
-        return jsonify({'error': 'A valid scu.edu email is required'}), 400
-
-    # Existing user by email -> return profile
-    user = User.load_by_email(email)
-    if user is not None:
-        return jsonify(_serialize_user(user)), 200
-    else:
-        return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/googlelogin', methods=['POST', 'OPTIONS'])
 def googlelogin():
@@ -227,17 +228,6 @@ def user_add_forum(user_id):
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
     
-@app.route('/api/users/<int:user_id>', methods=['GET', 'OPTIONS'])
-def get_user_profile(user_id):
-    if request.method == 'OPTIONS':
-        return ('', 204)
-
-    user = User.load_by_id(user_id)
-    if user is None:
-        return jsonify({'error': 'User not found'}), 404
-
-    return jsonify(_serialize_user(user)), 200
-
 @app.route('/api/users_name/<string:username>', methods=['GET', 'OPTIONS'])
 def get_user_profile_by_name(username):
     if request.method == 'OPTIONS':
@@ -249,32 +239,34 @@ def get_user_profile_by_name(username):
 
     return jsonify(_serialize_user(user)), 200
 
-@app.route('/api/users/<int:user_id>', methods=['POST', 'OPTIONS'])
-def update_user_profile(user_id):
+@app.route('/api/profile/update', methods=['POST', 'OPTIONS'])
+def update_user_profile():
     if request.method == 'OPTIONS':
         return ('', 204)
+
+    data = request.get_json(silent=True) or {}
+    user_id = data.get('id')
+    
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
 
     user = User.load_by_id(user_id)
     if user is None:
         return jsonify({'error': 'User not found'}), 404
 
-    data = request.get_json(silent=True) or {}
-    username = data.get('username')
-    major = data.get('major')
-    year = data.get('year')
-
     try:
-        if username and isinstance(username, str):
-            user.username = username
-        if major and isinstance(major, str):
-            user.major = major
-        if year is not None:
+        if 'username' in data and isinstance(data['username'], str):
+            user.username = data['username']
+        if 'major' in data and isinstance(data['major'], str):
+            user.major = data['major']
+        if 'year' in data:
+            year = data['year']
             if isinstance(year, str) and year.isdigit():
                 year = int(year)
             if isinstance(year, int):
                 user.year = year
 
-        return jsonify({'message': 'User profile updated successfully', 'user': _serialize_user(user)}), 200
+        return jsonify(_serialize_user(user)), 200
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
@@ -288,6 +280,192 @@ def get_forum_profile(forum_id):
         return jsonify({'error': 'Forum not found'}), 404
 
     return jsonify(_serialize_forum(forum)), 200
+
+def _require_admin(admin_email: str):
+    if not admin_email:
+        return None, jsonify({'error': 'admin_email is required'}), 400
+    admin_user = User.load_by_email(admin_email)
+    if admin_user is None:
+        return None, jsonify({'error': 'Admin user not found'}), 404
+    if not getattr(admin_user, 'is_admin', False):
+        return None, jsonify({'error': 'User is not an admin'}), 403
+    return admin_user, None, None
+
+def _require_admin_or_authorized(actor_email: str, forum: Forum):
+    if not actor_email:
+        return None, jsonify({'error': 'actor_email is required'}), 400
+    actor = User.load_by_email(actor_email)
+    if actor is None:
+        return None, jsonify({'error': 'Actor user not found'}), 404
+    if getattr(actor, 'is_admin', False):
+        return actor, None, None
+    # Check authorized status in forum (ensure freshest data)
+    forum_users = forum.getUsers()
+    authorized_ids = [u.db_id for u in getattr(forum, 'authorized', [])]
+    if actor.db_id in authorized_ids:
+        return actor, None, None
+    return None, jsonify({'error': 'User lacks permission (admin or authorized required)'}), 403
+
+@app.route('/api/forums/<int:forum_id>/authorize_user', methods=['POST', 'OPTIONS'])
+def authorize_user(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    target_email = data.get('target_email')
+    admin_email = data.get('admin_email')
+    admin_user, err_resp, status = _require_admin(admin_email)
+    if err_resp:
+        return err_resp, status
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    target_user = User.load_by_email(target_email)
+    if target_user is None:
+        return jsonify({'error': 'Target user not found'}), 404
+    try:
+        forum.authorizeUser(target_user)
+        return jsonify({'message': 'User authorized', 'forum': _serialize_forum(forum)}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/forums/<int:forum_id>/deauthorize_user', methods=['POST', 'OPTIONS'])
+def deauthorize_user(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    target_email = data.get('target_email')
+    admin_email = data.get('admin_email')
+    admin_user, err_resp, status = _require_admin(admin_email)
+    if err_resp:
+        return err_resp, status
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    target_user = User.load_by_email(target_email)
+    if target_user is None:
+        return jsonify({'error': 'Target user not found'}), 404
+    try:
+        forum.deauthorizeUser(target_user)
+        return jsonify({'message': 'User deauthorized', 'forum': _serialize_forum(forum)}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/forums/<int:forum_id>/restrict_user', methods=['POST', 'OPTIONS'])
+def restrict_user(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    target_email = data.get('target_email')
+    # Support either admin or authorized user (actor_email preferred, fallback to admin_email)
+    actor_email = data.get('actor_email') or data.get('admin_email')
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    target_user = User.load_by_email(target_email)
+    if target_user is None:
+        return jsonify({'error': 'Target user not found'}), 404
+    actor, err_resp, status = _require_admin_or_authorized(actor_email, forum)
+    if err_resp:
+        return err_resp, status
+    try:
+        forum.restrictUser(target_user)
+        return jsonify({'message': 'User restricted', 'forum': _serialize_forum(forum)}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/forums/<int:forum_id>/unrestrict_user', methods=['POST', 'OPTIONS'])
+def unrestrict_user(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    target_email = data.get('target_email')
+    actor_email = data.get('actor_email') or data.get('admin_email')
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    target_user = User.load_by_email(target_email)
+    if target_user is None:
+        return jsonify({'error': 'Target user not found'}), 404
+    actor, err_resp, status = _require_admin_or_authorized(actor_email, forum)
+    if err_resp:
+        return err_resp, status
+    try:
+        forum.unrestrictUser(target_user)
+        return jsonify({'message': 'User unrestricted', 'forum': _serialize_forum(forum)}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/posts/<int:post_id>/delete', methods=['POST', 'OPTIONS'])
+def delete_post(post_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    actor_email = data.get('actor_email') or data.get('admin_email')
+    post = Post.load_by_id(post_id)
+    if post is None:
+        return jsonify({'error': 'Post not found'}), 404
+    # Load forum to check authorization if not admin
+    try:
+        from backend.Forum import Forum as ForumClass
+        forum_id = getattr(post, 'forum_id', None)
+        forum = ForumClass.load_by_id(forum_id) if forum_id else None
+    except Exception:
+        forum = None
+    if forum is None and not getattr(User.load_by_email(actor_email), 'is_admin', False):
+        return jsonify({'error': 'Forum context required for authorized user'}), 400
+    actor, err_resp, status = _require_admin_or_authorized(actor_email, forum) if forum else _require_admin(actor_email)
+    if err_resp:
+        return err_resp, status
+    # Soft delete: set is_deleted flag
+    post.is_deleted = True
+    try:
+        from .db import SessionLocal
+        from .models import PostModel
+    except Exception:
+        from backend.db import SessionLocal
+        from backend.models import PostModel
+    session = SessionLocal()
+    post_model = session.get(PostModel, getattr(post, 'db_id', None))
+    if post_model is not None:
+        post_model.is_deleted = True
+        session.add(post_model)
+        session.commit()
+    session.close()
+    return jsonify({'message': 'Post deleted', 'post': _serialize_post(post)}), 200
+
+@app.route('/api/forums/<int:forum_id>/user_status', methods=['GET','OPTIONS'])
+def forum_user_status(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    # Accept user_email from query string or JSON body fallback
+    user_email = request.args.get('user_email')
+    if not user_email:
+        data = request.get_json(silent=True) or {}
+        user_email = data.get('user_email')
+    if not user_email or not isinstance(user_email, str):
+        return jsonify({'error': 'user_email is required'}), 400
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    user = User.load_by_email(user_email)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    # Ensure latest membership lists
+    members = forum.getUsers()
+    member_ids = [m.db_id for m in members]
+    is_member = user.db_id in member_ids
+    authorized_ids = [u.db_id for u in getattr(forum, 'authorized', [])]
+    restricted_ids = [u.db_id for u in getattr(forum, 'restricted', [])]
+    is_authorized = is_member and user.db_id in authorized_ids
+    is_restricted = is_member and user.db_id in restricted_ids
+    return jsonify({
+        'forum_id': forum.db_id,
+        'user_id': user.db_id,
+        'user_email': user.email,
+        'is_member': is_member,
+        'is_authorized': is_authorized,
+        'is_restricted': is_restricted
+    }), 200
 
 @app.route('/api/posts/<int:post_id>', methods=['GET', 'OPTIONS'])
 def get_post_profile(post_id, user_id=None, forum_id=None):
@@ -394,7 +572,7 @@ def post_comments(post_id):
     try:
         from backend.Messages import Comment
         
-        # Determine the parent (either the post or another comment)
+        # Determine the parent
         if parent_comment_id:
             parent = Post.load_by_id(parent_comment_id)
             if parent is None:
@@ -409,60 +587,6 @@ def post_comments(post_id):
         return jsonify({'message': 'Comment created successfully', 'comment': _serialize_post(new_comment)}), 201
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
-    
-@app.route('/api/posts/<int:post_id>/reactions', methods=['POST', 'OPTIONS'])
-def post_reactions(post_id):
-    if request.method == 'OPTIONS':
-        return ('', 204)
-
-    post = Post.load_by_id(post_id)
-    if post is None:
-        return jsonify({'error': 'Post not found'}), 404
-
-    data = request.get_json(silent=True) or {}
-    reaction_type = data.get('reaction_type')
-    user_email = data.get('user_email')
-
-    if not reaction_type or not isinstance(reaction_type, str):
-        return jsonify({'error': 'A valid reaction type is required'}), 400
-    if not user_email or not isinstance(user_email, str):
-        return jsonify({'error': 'User email is required'}), 400
-
-    user = User.load_by_email(user_email)
-    if user is None:
-        return jsonify({'error': 'User not found'}), 404
-
-    try:
-        from backend.Messages import Reaction
-        new_reaction = Reaction(reaction_type=reaction_type, user=user, parent=post)
-        return jsonify({'message': 'Reaction added successfully', 'reaction': {
-            'id': new_reaction.db_id,
-            'reaction_type': new_reaction.reaction_type,
-            'user': new_reaction.user.username if new_reaction.user else None
-        }}), 201
-    except (ValueError, TypeError) as e:
-        return jsonify({'error': str(e)}), 400
-    
-@app.route('/api/posts/<int:post_id>/reactions', methods=['GET', 'OPTIONS'])
-def get_post_reactions(post_id):
-    if request.method == 'OPTIONS':
-        return ('', 204)
-
-    post = Post.load_by_id(post_id)
-    if post is None:
-        return jsonify({'error': 'Post not found'}), 404
-
-    reactions = post.getreactions()
-    serialized_reactions = [
-        {
-            'id': reaction.db_id,
-            'reaction_type': reaction.reaction_type,
-            'user': reaction.user.username if reaction.user else None
-        }
-        for reaction in reactions
-    ]
-    return jsonify({'reactions': serialized_reactions}), 200
-    
     
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "../../../Navbar.tsx";
 import "./comment.css";
 import "../../../base.css";
@@ -11,8 +11,16 @@ interface CommentItem {
     createdAt: string;
 }
 
+interface RoleStatus {
+    isAdmin: boolean;
+    isAuthorized: boolean;
+    isRestricted: boolean;
+    isMember: boolean;
+}
+
 function Comment() {
     const { forumId, postId } = useParams();
+    const navigate = useNavigate();
     const [postTitle, setPostTitle] = useState<string>("");
     const [postBody, setPostBody] = useState<string>("");
     const [postAuthor, setPostAuthor] = useState<string>("");
@@ -20,11 +28,22 @@ function Comment() {
     const [newComment, setNewComment] = useState("");
     const [error, setError] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
+    const [role, setRole] = useState<RoleStatus>({ isAdmin: false, isAuthorized: false, isRestricted: false, isMember: false });
+    const [isDeleted, setIsDeleted] = useState<boolean>(false);
+    const [postForumId, setPostForumId] = useState<number | null>(null);
 
     useEffect(() => {
-        document.title = `Post ${postId} • ${forumId}`;
+        document.title = `Post ${postId} • ${forumId || postForumId || ''}`;
         handleGetPostInfo();
-    }, [postId]);
+        fetchRoleStatus();
+    }, [postId, forumId]);
+
+    // Re-fetch role status once we discover forum id from post if it was missing
+    useEffect(() => {
+        if (!forumId && postForumId) {
+            fetchRoleStatus();
+        }
+    }, [postForumId, forumId]);
 
     const handleGetPostInfo = async () => {
         setError("");
@@ -37,13 +56,15 @@ function Comment() {
                 setPostTitle(data.title);
                 setPostBody(data.message);
                 setPostAuthor(data.poster);
-                if(data.comments && data.comments.length > 0){
-                    // Map backend comments to frontend format
+                if (data.forum_id) {
+                    setPostForumId(data.forum_id);
+                }
+                if (data.comments && data.comments.length > 0) {
                     const mappedComments = data.comments.map((c: any) => ({
                         id: c.id,
                         text: c.message,
                         poster: c.poster,
-                        createdAt: new Date().toLocaleDateString()
+                        createdAt: c.created_at ? new Date(c.created_at).toLocaleDateString() : ''
                     }));
                     setComments(mappedComments);
                 }
@@ -90,7 +111,7 @@ function Comment() {
                     id: data.comment.id,
                     text: data.comment.message,
                     poster: data.comment.poster,
-                    createdAt: new Date().toLocaleDateString()
+                    createdAt: data.comment.created_at ? new Date(data.comment.created_at).toLocaleDateString() : ''
                 };
                 setComments([...comments, comment]);
                 setNewComment("");
@@ -102,6 +123,52 @@ function Comment() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchRoleStatus = async () => {
+        try {
+            const stored = sessionStorage.getItem('user');
+            if (!stored) return;
+            const current = JSON.parse(stored);
+            const isAdmin = !!current.is_admin;
+            const effectiveForumId = forumId || postForumId;
+            if (!effectiveForumId) {
+                // Still set admin in case admin alone grants delete permission
+                setRole(r => ({ ...r, isAdmin }));
+                return;
+            }
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${effectiveForumId}/user_status?user_email=${encodeURIComponent(current.email)}`);
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data) {
+                setRole({
+                    isAdmin,
+                    isAuthorized: !!data.is_authorized,
+                    isRestricted: !!data.is_restricted,
+                    isMember: !!data.is_member
+                });
+            }
+        } catch { /* ignore */ }
+    };
+
+    const handleDeletePost = async () => {
+        if (!(role.isAdmin || role.isAuthorized)) return;
+        try {
+            const stored = sessionStorage.getItem('user');
+            if (!stored) { setError('Login required'); return; }
+            const user = JSON.parse(stored);
+            const resp = await fetch(`http://127.0.0.1:5000/api/posts/${postId}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actor_email: user.email })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok) {
+                setIsDeleted(true);
+                setTimeout(() => navigate(`/forum/${forumId}`), 800);
+            } else {
+                setError(data?.error || 'Failed to delete post');
+            }
+        } catch { setError('Network error deleting post'); }
     };
 
     return (
@@ -120,9 +187,12 @@ function Comment() {
 
             {/* Highlight main post */}
             <div className="featured-post">
-                <p className="featured-content">{postBody}</p>
+                <p className="featured-content">{isDeleted ? '[deleted]' : postBody}</p>
                 <div className="featured-meta">
                     Posted by <Link to={`/profile/${postAuthor}`}><strong>{postAuthor}</strong></Link>
+                    {(role.isAdmin || role.isAuthorized) && !isDeleted && (
+                        <button className="post-action-btn" onClick={handleDeletePost}>Delete Post</button>
+                    )}
                 </div>
             </div>
 

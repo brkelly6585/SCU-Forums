@@ -13,14 +13,14 @@ init_db()
 
 class Forum:
     def __new__(cls, *args, **kwargs):
-        # Accept flexible args; extract course_name from kwargs or first positional arg
+        # Allow kwargs for course name and details
         course_name = kwargs.get('course_name')
         if course_name is None and len(args) > 0:
             course_name = args[0]
         if course_name is None:
             return object.__new__(cls)
 
-        # If a forum with this course_name exists in DB, return the existing wrapper
+        # If a forum with this course_name exists, return
         session = SessionLocal()
         try:
             forum_model = session.query(ForumModel).filter(ForumModel.course_name == course_name).first()
@@ -30,7 +30,7 @@ class Forum:
                     return existing
                 wrapper = cls.from_model(forum_model, session=session)
                 return wrapper
-            # not found -> create a fresh instance
+            # if not found, create new
             return object.__new__(cls)
         finally:
             session.close()
@@ -59,25 +59,26 @@ class Forum:
         self.users: List[User] = []
         self.authorized: List[User] = []
         self.restricted: List[User] = []
-        # persist forum to DB
+        # update db
         session = SessionLocal()
         forum_model = ForumModel(course_name=self.course_name)
         session.add(forum_model)
         session.commit()
         session.refresh(forum_model)
         self.db_id = forum_model.id
+        self.created_at = getattr(forum_model, 'created_at', None)
         session.close()
         # register wrapper
         register('Forum', getattr(self, 'db_id', None), self)
 
     @classmethod
     def from_model(cls, forum_model, session=None):
-        # Return existing wrapper if present to preserve identity
+        # Return existing wrapper if present
         existing = registry_get('Forum', getattr(forum_model, 'id', None))
         if existing is not None:
             return existing
 
-        # Build a Forum wrapper from a ForumModel without creating a duplicate DB row.
+        # Build a Forum wrapper from a ForumModel without creating a duplicate
         close_session = False
         if session is None:
             session = SessionLocal()
@@ -90,9 +91,11 @@ class Forum:
             # Load users from the forum_model's users relationship
             from backend.User import User
             f.users = [User.from_model(user_model) for user_model in forum_model.users]
-            f.authorized = []
-            f.restricted = []
+            # Load authorized/restricted user wrappers from relationships
+            f.authorized = [User.from_model(user_model) for user_model in getattr(forum_model, 'authorized_users', [])]
+            f.restricted = [User.from_model(user_model) for user_model in getattr(forum_model, 'restricted_users', [])]
             f.db_id = int(forum_model.id)
+            f.created_at = getattr(forum_model, 'created_at', None)
             # register wrapper
             register('Forum', f.db_id, f)
             return f
@@ -156,7 +159,7 @@ class Forum:
                 # print(f"[DEBUG] Added user {user.username} (db_id={user.db_id}) to forum {self.course_name} (db_id={self.db_id})")
                 # print(f"[DEBUG] ForumModel.users after add: {[u.id for u in forum_model.users]}")
             session.close()
-            # ensure user's forum list also reflects membership (in-memory)
+            # ensure user's forum list also reflects membership
             try:
                 if getattr(user, 'forum', None) is not None and self not in user.forum:
                     user.forum.append(self)
@@ -204,27 +207,65 @@ class Forum:
     def authorizeUser(self, user: User) -> None:
         if not isinstance(user, User):
             raise TypeError("user must be a User instance")
+        if user not in self.users:
+            raise ValueError("User is not a member of this forum")
         if user not in self.authorized:
+            # update db relationships
+            session = SessionLocal()
+            forum_model = session.get(ForumModel, self.db_id)
+            user_model = session.get(UserModel, getattr(user, 'db_id', None))
+            if forum_model is not None and user_model is not None and user_model not in getattr(forum_model, 'authorized_users', []):
+                forum_model.authorized_users.append(user_model)
+                session.add(forum_model)
+                session.commit()
+            session.close()
             self.authorized.append(user)
-            # Remove from restricted list when authorized
             if user in self.restricted:
                 self.unrestrictUser(user)
     
     def deauthorizeUser(self, user: User) -> None:
         if user in self.authorized:
+            # update db relationships
+            session = SessionLocal()
+            forum_model = session.get(ForumModel, self.db_id)
+            user_model = session.get(UserModel, getattr(user, 'db_id', None))
+            if forum_model is not None and user_model is not None and user_model in getattr(forum_model, 'authorized_users', []):
+                forum_model.authorized_users.remove(user_model)
+                session.add(forum_model)
+                session.commit()
+            session.close()
             self.authorized.remove(user)
     
     def restrictUser(self, user: User) -> None:
         if not isinstance(user, User):
             raise TypeError("user must be a User instance")
+        if user not in self.users:
+            raise ValueError("User is not a member of this forum")
         if user not in self.restricted:
+            # update db relationships
+            session = SessionLocal()
+            forum_model = session.get(ForumModel, self.db_id)
+            user_model = session.get(UserModel, getattr(user, 'db_id', None))
+            if forum_model is not None and user_model is not None and user_model not in getattr(forum_model, 'restricted_users', []):
+                forum_model.restricted_users.append(user_model)
+                session.add(forum_model)
+                session.commit()
+            session.close()
             self.restricted.append(user)
-            # Remove from authorized list when restricted
             if user in self.authorized:
                 self.deauthorizeUser(user)
     
     def unrestrictUser(self, user: User) -> None:
         if user in self.restricted:
+            # update db relationships
+            session = SessionLocal()
+            forum_model = session.get(ForumModel, self.db_id)
+            user_model = session.get(UserModel, getattr(user, 'db_id', None))
+            if forum_model is not None and user_model is not None and user_model in getattr(forum_model, 'restricted_users', []):
+                forum_model.restricted_users.remove(user_model)
+                session.add(forum_model)
+                session.commit()
+            session.close()
             self.restricted.remove(user)
     
     def addPost(self, post: Post) -> None:
@@ -234,7 +275,7 @@ class Forum:
         user_ids = [u.db_id for u in self.users]
         if post.poster.db_id not in user_ids:
             raise ValueError("post author must be a member of the forum")
-        # Check if user is restricted (also by db_id)
+        # Check if user is restricted
         restricted_ids = [u.db_id for u in self.restricted]
         if post.poster.db_id in restricted_ids:
             raise ValueError("restricted users cannot add posts")
@@ -248,23 +289,15 @@ class Forum:
                 post_model.forum_id = forum_model.id
                 session.add(post_model)
                 session.commit()
+                # mirror relation on wrapper so serialization exposes forum_id
+                try:
+                    post.forum_id = forum_model.id
+                except Exception:
+                    pass
             session.close()
-    
-    def removePost(self, post: Post) -> None:
-        if post in self.posts:
-            self.posts.remove(post)
-            # unlink from DB
-            session = SessionLocal()
-            post_model = session.get(PostModel, getattr(post, 'db_id', None))
-            if post_model is not None:
-                post_model.forum_id = None
-                session.add(post_model)
-                session.commit()
-            session.close()
-    
     
     def getPosts(self) -> List[Post]:
-        # Return posts for this forum from the DB (DB is the source of truth)
+        # Return posts for this forum from the DB
         session = SessionLocal()
         try:
             from .models import PostModel
@@ -289,10 +322,6 @@ class Forum:
             return users
         finally:
             session.close()
+    
     def isauthorized(self, user: User) -> bool:
         return user in self.authorized
-    def getCourseName(self) -> str:
-        return self.course_name
-    def getForumID(self) -> int:
-        return self.forum_id
-    

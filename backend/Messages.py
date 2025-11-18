@@ -19,7 +19,7 @@ class Post:
     DELETED_MESSAGE = "[deleted]"
 
     def __new__(cls, *args, **kwargs):
-        # Always create a fresh wrapper instance. Identity is preserved only when loading via from_model.
+        # Always create a new wrapper, unless it alread exists in db
         return object.__new__(cls)
 
     def __init__(self, poster: User, message: str, title: str, comments: Optional[List['Comment']] = None, reactions: Optional[List['Reaction']] = None):
@@ -40,7 +40,7 @@ class Post:
             if word.lower() in message_lower:
                 raise ValueError("Post contains inappropriate content")
 
-        # If this wrapper already has a db_id (created via from_model or returned as existing), skip initialization
+        # If wrapper already has a db_id, skip initialization
         if getattr(self, 'db_id', None) is not None:
             return
 
@@ -51,9 +51,9 @@ class Post:
         # use a per-instance list
         self.comments: List['Comment'] = comments if comments is not None else []
         self.reactions: List['Reaction'] = reactions if reactions is not None else []
-        # Flag to track if post is deleted. If the poster is already deleted, propagate that state.
+        # Flag to track if post is deleted. If the poster is already deleted, delete.
         self.is_deleted: bool = getattr(self.poster, "is_deleted", False)
-        # persist to DB
+        # Maintain db
         session = SessionLocal()
         poster_id = getattr(self.poster, 'db_id', None)
         post_model = PostModel(poster_id=poster_id, forum_id=None, title=self.title, message=self.message, is_deleted=self.is_deleted, parent_id=None)
@@ -61,6 +61,7 @@ class Post:
         session.commit()
         session.refresh(post_model)
         self.db_id = post_model.id
+        self.created_at = getattr(post_model, 'created_at', None)
         session.close()
         # register wrapper to preserve identity
         register('Post', getattr(self, 'db_id', None), self)
@@ -75,18 +76,18 @@ class Post:
 
     def remove_comment(self, comment: 'Comment') -> None:
         if comment in self.comments:
-            # Mark the comment as deleted but keep it in the tree
+            # Mark the comment as deleted but keep active
             comment.editmessage(self.DELETED_MESSAGE)
             comment.title = self.DELETED_MESSAGE
             comment.is_deleted = True  # Set deletion flag
 
     def getposter(self) -> User:
-        # Return poster loaded from DB (DB is source of truth). If poster is not persisted, fall back to in-memory.
+        # Return poster loaded from DB.
         poster_db_id = getattr(self, 'db_id', None)
-        # If this wrapper already has a poster that is a fully built wrapper with db_id, return it
+        # If poster, return them
         if getattr(self.poster, 'db_id', None) is not None:
             return self.poster
-        # Otherwise, try to load from DB via PostModel
+        # Otherwise, try to load from db
         session = SessionLocal()
         try:
             from .models import PostModel, UserModel
@@ -101,7 +102,7 @@ class Post:
             session.close()
     
     def getcomments(self) -> List['Comment']:
-        # Load comments for this post from DB (DB is source of truth)
+        # Load comments for this post from DB
         session = SessionLocal()
         try:
             from .models import PostModel
@@ -109,7 +110,7 @@ class Post:
             if getattr(self, 'db_id', None) is None:
                 return self.comments
             db_comments = session.query(PostModel).filter(PostModel.parent_id == getattr(self, 'db_id', None)).all()
-            # reuse in-memory comment wrappers when possible
+            # reuse in-memory comment wrappers when possible (likely less necessary now that its in server)
             comments = []
             for db_comment in db_comments:
                 found = None
@@ -122,7 +123,6 @@ class Post:
                 else:
                     c = Post.from_model(db_comment, session=session)
                     c.parent = self
-                    # add to in-memory list for future identity-preservation
                     self.comments.append(c)
                     comments.append(c)
             return comments
@@ -140,7 +140,7 @@ class Post:
             db_reactions = session.query(ReactionModel).filter(ReactionModel.parent_id == getattr(self, 'db_id', None)).all()
             reactions = []
             for r_model in db_reactions:
-                # prefer existing in-memory reaction wrappers
+                # prefer existing reaction wrappers
                 found = None
                 for r in self.reactions:
                     if getattr(r, 'db_id', None) == getattr(r_model, 'id', None):
@@ -152,16 +152,13 @@ class Post:
                 else:
                     r = Reaction.from_model(r_model, session=session)
                     r.parent = self
-                    # add to in-memory list for future identity preservation
+                    # add to list
                     self.reactions.append(r)
                     reactions.append(r)
             return reactions
         finally:
             session.close()
     
-    def getmessage(self) -> str:
-        return self.message
-
     def editmessage(self, new_message: str) -> None:
         self.message = new_message
     
@@ -174,7 +171,7 @@ class Post:
             if existing_reaction == reaction:
                 raise ValueError("User already has this type of reaction on this post")
                 
-        # attach reaction to this post (update in-memory and DB)
+        # attach reaction to this post
         self.reactions.append(reaction)
         reaction.parent = self
         try:
@@ -191,38 +188,12 @@ class Post:
             except Exception:
                 pass
 
-    
-    def removereaction(self, reaction: 'Reaction') -> None:
-        if reaction in self.reactions:
-            self.reactions.remove(reaction)
-            # update DB to unlink reaction from this post
-            try:
-                session = SessionLocal()
-                from .models import ReactionModel
-                reaction_model = session.get(ReactionModel, getattr(reaction, 'db_id', None))
-                if reaction_model is not None:
-                    reaction_model.parent_id = None
-                    session.add(reaction_model)
-                    session.commit()
-            finally:
-                try:
-                    session.close()
-                except Exception:
-                    pass
-
-    def addcomment(self, comment: 'Comment') -> None:
-        if not isinstance(comment, Comment):
-            raise TypeError("comment must be a Comment instance")
-        if comment not in self.comments:
-            self.comments.append(comment)
-        comment.parent = self
-
     def __repr__(self) -> str:
         return f"Post(id={self.id!r}, title={self.title!r}, message={self.message!r}, comments={len(self.comments)})"
 
     @classmethod
     def from_model(cls, post_model, session=None):
-        # Build a Post wrapper from a PostModel without creating a duplicate DB row.
+        # Build a Post wrapper from a PostModel without creating a duplicate
         close_session = False
         if session is None:
             session = SessionLocal()
@@ -238,7 +209,7 @@ class Post:
             p.title = post_model.title
             # Use DB id as wrapper id for stability
             p.id = int(post_model.id)
-            # poster -> build a User wrapper if present (avoid using User() which would persist)
+            
             poster = None
             if post_model.poster is not None:
                 from backend.User import User
@@ -248,12 +219,17 @@ class Post:
             p.reactions = []
             p.is_deleted = bool(post_model.is_deleted)
             p.db_id = int(post_model.id)
-            # parent linking left as None; comments will be loaded separately if needed
+            p.created_at = getattr(post_model, 'created_at', None)
+            # get forum relationship id for serialization
+            try:
+                p.forum_id = getattr(post_model, 'forum_id', None)
+            except Exception:
+                p.forum_id = None
             p.parent = None
             # register wrapper
             register('Post', p.db_id, p)
 
-            # eagerly load child comments (avoid deep recursion by using session)
+            # load comments
             try:
                 from .models import PostModel, ReactionModel
                 child_models = session.query(PostModel).filter(PostModel.parent_id == p.db_id).all()
@@ -315,12 +291,9 @@ class Comment(Post):
                 session.close()
             except Exception:
                 pass
-    
-    def getparent(self) -> Optional[Post]:
-        return self.parent
         
     def remove_comment(self, comment: 'Comment') -> None:
-        # Override to mark deleted comments while preserving the tree structure
+        # Override to mark deleted comments while preserving existance
         if comment in self.comments:
             comment.editmessage(self.DELETED_MESSAGE)
             comment.title = self.DELETED_MESSAGE
@@ -358,7 +331,7 @@ class Reaction():
                     return existing
                 wrapper = cls.from_model(reaction_model, session=session)
                 return wrapper
-            # not found -> create a fresh instance
+            # not found create a new one
             return object.__new__(cls)
         finally:
             session.close()
@@ -369,7 +342,7 @@ class Reaction():
         if reaction_type not in self.VALID_REACTION_TYPES:
             raise ValueError(f"Invalid reaction type. Must be one of: {', '.join(self.VALID_REACTION_TYPES)}")
 
-        # If wrapper already has db_id (created via from_model), skip initialization
+        # If wrapper already has db_id, skip
         if getattr(self, 'db_id', None) is not None:
             return
 
@@ -389,15 +362,6 @@ class Reaction():
         # register wrapper to preserve identity
         register('Reaction', getattr(self, 'db_id', None), self)
     
-    def gettype(self) -> str:
-        return self.reaction_type
-
-    def getuser(self) -> User:
-        return self.user
-
-    def getparent(self) -> Optional[Post]:
-        return self.parent
-
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Reaction):
             return NotImplemented
@@ -428,7 +392,6 @@ class Reaction():
                 from backend.User import User
                 user = User.from_model(reaction_model.user)
             r.user = user
-            # parent linking left as None to avoid deep recursion; tests can still inspect reaction fields
             r.parent = None
             r.db_id = int(reaction_model.id)
             # register wrapper

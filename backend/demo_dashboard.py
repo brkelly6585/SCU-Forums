@@ -1,7 +1,7 @@
 '''
-Multi-user dashboard demo via console.
-Seeds a few users with different forum memberships and posts,
-then simulates each user logging in and viewing their dashboard.
+Seed for db that can be used for demos
+bkelly@scu.edu is the admin
+jhunter@scu.edu & kkang@scu.edu are users
 '''
 import sys
 import os
@@ -83,6 +83,23 @@ def main():
     # User 1: Bryce Kelly
     user1 = User("bkelly", "bkelly@scu.edu", "CSEN", 2026, None, None, None)
     print(f"   > Created user: {user1.username} ({user1.email})")
+    # Promote Bryce Kelly to admin immediately
+    try:
+        from backend.db import SessionLocal
+        from backend.models import UserModel
+        session = SessionLocal()
+        user_model = session.query(UserModel).filter(UserModel.id == user1.db_id).first()
+        if user_model:
+            user_model.is_admin = True
+            session.add(user_model)
+            session.commit()
+            user1.is_admin = True
+            print(f"   > Promoted {user1.username} to admin")
+        else:
+            print("   > WARNING: Could not find DB row to promote admin")
+        session.close()
+    except Exception as e:
+        print(f"   > ERROR promoting admin: {e}")
     
     # User 2: Kenny Kang
     user2 = User("kkang", "kkang@scu.edu", "CSEN", 2025, None, None, None)

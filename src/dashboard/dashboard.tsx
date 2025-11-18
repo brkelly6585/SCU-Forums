@@ -58,7 +58,7 @@ function Dashboard() {
                                             <td>{post.forum}</td>
                                             <td>
                                                 <Link
-                                                    to={`/forum/${post.forum}/post/${post.id}`}
+                                                    to={`/forum/${post.forum_id || post.forum}/post/${post.id}`}
                                                     className="post-link"
                                                 >
                                                     {post.title}
