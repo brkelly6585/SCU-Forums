@@ -10,37 +10,7 @@ function Login() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const handleLogin = async () => {
-        setError("");
-        if (!email.endsWith("@scu.edu")) {
-            setError("Please use a valid @scu.edu email");
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const resp = await fetch("http://127.0.0.1:5000/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-            });
-            const data = await resp.json().catch(() => null);
-            if (resp.ok && data) {
-                sessionStorage.setItem("user", JSON.stringify(data));
-                navigate("/dashboard");
-            } else {
-                setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
-            }
-        } catch {
-            setError("Network error. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleGoogleLogin = async (response: any) => {
-        console.log("Credential:", response.credential);
-        console.log(response);
         setLoading(true);
         try {
             const resp = await fetch("http://127.0.0.1:5000/api/googlelogin", {
@@ -52,6 +22,9 @@ function Login() {
             if (resp.ok && data) {
                 sessionStorage.setItem("user", JSON.stringify(data));
                 navigate("/dashboard");
+            }else if (data && data.email && resp.status == 404){
+                sessionStorage.setItem("newEmail", data.email)
+                navigate("/createaccount");
             } else {
                 setError((data && data.error) || "Login failed. If this is a new email, please contact an admin to set up your account.");
             }
@@ -67,7 +40,7 @@ function Login() {
             <div className="login-card">
                 <h1>Welcome to SCU Class Forums</h1>
 
-                <div className="login-form">
+                {/*<div className="login-form">
                     <label>Email:</label>
                     <input
                         type="email"
@@ -77,12 +50,15 @@ function Login() {
                     />
                     <small>Note: please use your @scu.edu email</small>
                     {error && <p className="login-error">{error}</p>}
-                </div>
+                </div>*/}
+                
                 <LoginButton onSuccess={handleGoogleLogin} />
+                <small className="email-disclaimer">Note: an @scu.edu email is required for this website</small>
+                {error && <p className='login-error'>{error}</p>}
 
-                <button onClick={handleLogin} disabled={loading}>
+                {/*<button onClick={handleLogin} disabled={loading}>
                     {loading ? "Logging in..." : "Log in"}
-                </button>
+                </button>*/}
             </div>
         </div>
     );

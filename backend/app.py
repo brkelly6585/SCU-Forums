@@ -116,7 +116,7 @@ def googlelogin():
         if user is not None:
             return jsonify(_serialize_user(user)), 200
         else:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'error': 'User not found', 'email': email}), 404
     except ValueError:
         return jsonify({'error': 'Invalid Google token'}), 401
     

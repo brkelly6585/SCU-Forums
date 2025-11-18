@@ -8,6 +8,7 @@ import Comment from "./forum/post/comment/comment.tsx";
 
 
 import './App.css';
+import CreateAccount from "./login/create-account/createAccount.tsx";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/forum" element={<Forum />} />
           <Route path="/forum/:forumId" element={<Post />} />
           <Route path="/forum/:forumId/post/:postId" element={<Comment />} />
+          <Route path="/createaccount" element={<CreateAccount />} />
         </Routes>
       </Router>
     </div>
