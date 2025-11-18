@@ -22,6 +22,8 @@ function App() {
           <Route path="/forum/:forumId" element={<Post />} />
           <Route path="/forum/:forumId/post/:postId" element={<Comment />} />
           <Route path="/createaccount" element={<CreateAccount />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:userId" element={<Profile />} /> 
         </Routes>
       </Router>
     </div>

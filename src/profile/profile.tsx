@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import Navbar from "../Navbar.tsx";
 import "./profile.css";
 import "../base.css";
@@ -16,6 +17,7 @@ interface ProfileData {
 }
 
 function Profile() {
+  const { userId } = useParams<{ userId?: string }>();
   const [infoToggle, setToggle] = useState(true);
   const [profile, setProfile] = useState<ProfileData>({
     id: undefined,
@@ -28,84 +30,98 @@ function Profile() {
     courses: "CSEN174, CSEN160, HIST79",
     interests: "N/A",
   });
+  const [isOwnProfile, setIsOwnProfile] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
-  // Load profile data
+  const mapBackendToProfile = (user: any): ProfileData => ({
+    id: user.id,
+    fName: user.first_name || "",
+    lName: user.last_name || "",
+    username: user.username || "",
+    major: user.major || "",
+    email: user.email || "",
+    grade: user.year || "",
+    courses: user.courses || "CSEN174, CSEN160, HIST79",
+    interests: user.interests || "N/A",
+  });
+
+  // Fetch profile data
   const handleGetProfile = async () => {
     setError("");
 
+    // current logged-in user (from login)
     const stored = sessionStorage.getItem("user");
+    let currentUser: any | null = null;
     if (stored) {
       try {
-        const user = JSON.parse(stored);
-
-        // Map backend field names -> frontend state
-        const baseProfile: ProfileData = {
-          id: user.id,
-          fName: user.first_name || "",
-          lName: user.last_name || "",
-          username: user.username || "",
-          major: user.major || "",
-          email: user.email || "",
-          grade: user.year || "",
-          courses: user.courses || "CSEN174, CSEN160, HIST79",
-          interests: user.interests || "N/A",
-        };
-
-        setProfile(baseProfile);
-
-        if (user.id) {
-          try {
-            const resp = await fetch(
-              `http://127.0.0.1:5000/api/profile/${user.id}`,
-              {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-              }
-            );
-
-            if (resp.ok) {
-              const data = await resp.json();
-
-              const freshProfile: ProfileData = {
-                id: data.id ?? user.id,
-                fName: data.first_name ?? baseProfile.fName,
-                lName: data.last_name ?? baseProfile.lName,
-                username: data.username ?? baseProfile.username,
-                major: data.major ?? baseProfile.major,
-                email: data.email ?? baseProfile.email,
-                grade: data.year ?? baseProfile.grade,
-                courses: data.courses ?? baseProfile.courses,
-                interests: data.interests ?? baseProfile.interests,
-              };
-
-              setProfile(freshProfile);
-              // keep sessionStorage in sync
-              sessionStorage.setItem(
-                "user",
-                JSON.stringify({
-                  ...user,
-                  ...data,
-                })
-              );
-            }
-          } catch {
-            // If backend fetch fails, we silently keep sessionStorage data
-            console.warn("Could not refresh profile from backend");
-          }
-        }
-      } catch (e) {
-        console.warn("Invalid user data in sessionStorage", e);
+        currentUser = JSON.parse(stored);
+      } catch {
+        console.warn("Invalid user data in sessionStorage");
       }
+    }
+
+    // which user are we viewing?
+    const targetId = userId ? Number(userId) : currentUser?.id;
+    if (!targetId) {
+      setError("No user information available. Please log in again.");
+      return;
+    }
+
+    // Check who you are viewing
+    const own =
+      !userId || (currentUser && String(currentUser.id) === String(userId));
+    setIsOwnProfile(own);
+
+    // If viewing own profile and have session data, show it
+    if (own && currentUser) {
+      setProfile(mapBackendToProfile(currentUser));
+    }
+
+    // Always try to refresh from backend for the targetId
+    try {
+      const resp = await fetch(
+        `http://127.0.0.1:5000/api/profile/${targetId}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        }
+      );
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null);
+        throw new Error(data?.error || "Failed to load profile.");
+      }
+
+      const data = await resp.json();
+      const freshProfile = mapBackendToProfile(data);
+      setProfile(freshProfile);
+
+      // Own profile, keep sessionStorage in sync
+      if (own) {
+        sessionStorage.setItem(
+          "user",
+          JSON.stringify({
+            ...(currentUser || {}),
+            ...data,
+          })
+        );
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Network error while loading profile.");
     }
   };
 
-  // Save profile to backend.
+  // Save profile changes
   const handleSaveProfile = async () => {
     setError("");
 
-    // Map frontend state keys to backend field names
+    if (!isOwnProfile) {
+      setError("You can’t edit another user’s profile.");
+      return;
+    }
+
     const payload = {
       id: profile.id,
       first_name: profile.fName,
@@ -128,13 +144,13 @@ function Profile() {
 
       if (!resp.ok) {
         const data = await resp.json().catch(() => null);
-        throw new Error(data?.error || "Failed to save profile");
+        throw new Error(data?.error || "Failed to save profile.");
       }
 
-      // If backend returns updated user object, keep everything in sync
       const updatedUser = await resp.json().catch(() => null);
-      if (updatedUser) {
+      if (updatedUser && isOwnProfile) {
         sessionStorage.setItem("user", JSON.stringify(updatedUser));
+        setProfile(mapBackendToProfile(updatedUser));
       }
 
       setToggle(true);
@@ -147,18 +163,27 @@ function Profile() {
   useEffect(() => {
     document.title = "Profile";
     handleGetProfile();
-  }, []);
+    // re-run whenever the URL userId changes
+  }, [userId]);
 
   const handleChange = (key: keyof ProfileData, value: string) =>
     setProfile((prev) => ({ ...prev, [key]: value }));
+
+  const canEdit = isOwnProfile; // central place to control editability
 
   return (
     <div className="profile-container">
       <Navbar />
       <section className="profile-section">
-        <h2>Profile Information</h2>
+        <h2>
+          {canEdit
+            ? "Your Profile"
+            : `Profile${profile.username ? ` • ${profile.username}` : ""}`}
+        </h2>
         <p className="profile-subtitle">
-          View or edit your account details below.
+          {canEdit
+            ? "View or edit your account details below."
+            : "Viewing another user's profile. Editing is disabled."}
         </p>
 
         {error && <p className="error-text">{error}</p>}
@@ -167,7 +192,6 @@ function Profile() {
           {(
             Object.entries(profile) as [keyof ProfileData, string | number | undefined][]
           )
-            // hide internal id field from the form
             .filter(([key]) => key !== "id")
             .map(([key, val]) => (
               <div key={key} className="profile-field">
@@ -184,9 +208,9 @@ function Profile() {
                 <input
                   type="text"
                   value={val ?? ""}
-                  disabled={infoToggle}
+                  disabled={infoToggle || !canEdit}
                   onChange={(e) =>
-                    handleChange(key as keyof ProfileData, e.target.value)
+                    handleChange(key, e.target.value)
                   }
                 />
               </div>
@@ -194,21 +218,22 @@ function Profile() {
         </div>
 
         <div className="profile-actions">
-          {infoToggle ? (
-            <button onClick={() => setToggle(false)}>Edit</button>
-          ) : (
-            <>
-              <button onClick={handleSaveProfile}>Save</button>
-              <button
-                onClick={() => {
-                  setToggle(true);
-                  handleGetProfile(); // reset unsaved changes
-                }}
-              >
-                Cancel
-              </button>
-            </>
-          )}
+          {canEdit &&
+            (infoToggle ? (
+              <button onClick={() => setToggle(false)}>Edit</button>
+            ) : (
+              <>
+                <button onClick={handleSaveProfile}>Save</button>
+                <button
+                  onClick={() => {
+                    setToggle(true);
+                    handleGetProfile();
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            ))}
         </div>
       </section>
     </div>
