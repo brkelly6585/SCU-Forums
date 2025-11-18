@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import Navbar from "../Navbar.tsx";
 import "./profile.css";
 import "../base.css";
@@ -16,6 +17,9 @@ interface ProfileData {
 }
 
 function Profile() {
+  const { username } = useParams();
+  const [isAdmin, setAdmin] = useState(false);
+  const [isExternal, setExternal] = useState(false);
   const [infoToggle, setToggle] = useState(true);
   const [profile, setProfile] = useState<ProfileData>({
     id: undefined,
@@ -35,6 +39,7 @@ function Profile() {
     setError("");
 
     const stored = sessionStorage.getItem("user");
+    console.log(username);
     if (stored) {
       try {
         const user = JSON.parse(stored);
@@ -51,18 +56,13 @@ function Profile() {
           courses: user.courses || "CSEN174, CSEN160, HIST79",
           interests: user.interests || "N/A",
         };
-
+        setExternal(false);
         setProfile(baseProfile);
 
-        if (user.id) {
+        if (username && username.length > 0 && username != user.username) {
           try {
             const resp = await fetch(
-              `http://127.0.0.1:5000/api/profile/${user.id}`,
-              {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-              }
+              `http://127.0.0.1:5000/api/users_name/${username}`
             );
 
             if (resp.ok) {
@@ -81,14 +81,7 @@ function Profile() {
               };
 
               setProfile(freshProfile);
-              // keep sessionStorage in sync
-              sessionStorage.setItem(
-                "user",
-                JSON.stringify({
-                  ...user,
-                  ...data,
-                })
-              );
+              setExternal(true);
             }
           } catch {
             // If backend fetch fails, we silently keep sessionStorage data
@@ -147,7 +140,7 @@ function Profile() {
   useEffect(() => {
     document.title = "Profile";
     handleGetProfile();
-  }, []);
+  }, [username]);
 
   const handleChange = (key: keyof ProfileData, value: string) =>
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -157,9 +150,9 @@ function Profile() {
       <Navbar />
       <section className="profile-section">
         <h2>Profile Information</h2>
-        <p className="profile-subtitle">
+        {isExternal ? "" : <p className="profile-subtitle">
           View or edit your account details below.
-        </p>
+        </p>}
 
         {error && <p className="error-text">{error}</p>}
 
@@ -192,10 +185,10 @@ function Profile() {
               </div>
             ))}
         </div>
-
+        {isExternal ? "" : 
         <div className="profile-actions">
           {infoToggle ? (
-            <button onClick={() => setToggle(false)}>Edit</button>
+            <button onClick={() => setToggle(false)} disabled={isExternal}>Edit</button>
           ) : (
             <>
               <button onClick={handleSaveProfile}>Save</button>
@@ -209,7 +202,7 @@ function Profile() {
               </button>
             </>
           )}
-        </div>
+        </div>}
       </section>
     </div>
   );

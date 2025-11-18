@@ -238,6 +238,17 @@ def get_user_profile(user_id):
 
     return jsonify(_serialize_user(user)), 200
 
+@app.route('/api/users_name/<string:username>', methods=['GET', 'OPTIONS'])
+def get_user_profile_by_name(username):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    user = User.load_by_username(username)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    return jsonify(_serialize_user(user)), 200
+
 @app.route('/api/users/<int:user_id>', methods=['POST', 'OPTIONS'])
 def update_user_profile(user_id):
     if request.method == 'OPTIONS':

@@ -122,7 +122,7 @@ function Comment() {
             <div className="featured-post">
                 <p className="featured-content">{postBody}</p>
                 <div className="featured-meta">
-                    Posted by <strong>{postAuthor}</strong>
+                    Posted by <Link to={`/profile/${postAuthor}`}><strong>{postAuthor}</strong></Link>
                 </div>
             </div>
 
@@ -132,7 +132,7 @@ function Comment() {
                     <li key={comment.id} className="comment-item">
                         <div className="comment-body">{comment.text}</div>
                         <div className="comment-meta">
-                            <span>{comment.poster}</span> • <span>{comment.createdAt}</span>
+                            <Link to={`/profile/${comment.poster}`}><span>{comment.poster}</span></Link> • <span>{comment.createdAt}</span>
                         </div>
                     </li>
                 ))}

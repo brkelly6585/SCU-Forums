@@ -18,6 +18,7 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:username" element={<Profile />} />
           <Route path="/forum" element={<Forum />} />
           <Route path="/forum/:forumId" element={<Post />} />
           <Route path="/forum/:forumId/post/:postId" element={<Comment />} />
