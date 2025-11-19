@@ -7,16 +7,41 @@ import "../base.css";
 function Dashboard() {
     const [user, setUser] = useState<any | null>(null);
 
+    // Fetch fresh user data from backend (fallback to sessionStorage).
+    const fetchFreshUser = async () => {
+        const stored = sessionStorage.getItem("user");
+        let base: any = null;
+        if (stored) {
+            try { base = JSON.parse(stored); } catch { base = null; }
+        }
+        const username = base?.username;
+        if (!username) {
+            setUser(base);
+            return;
+        }
+        try {
+            const resp = await fetch(`http://127.0.0.1:5000/api/users_name/${username}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                // Preserve any client-only fields if present
+                const merged = { ...data, courses: base?.courses, interests: base?.interests };
+                sessionStorage.setItem("user", JSON.stringify(merged));
+                setUser(merged);
+                return;
+            }
+        } catch {
+            // Ignore network errors; keep existing data
+        }
+        setUser(base);
+    };
+
     useEffect(() => {
         document.title = "Dashboard";
-        const stored = sessionStorage.getItem("user");
-        if (stored) {
-            try {
-                setUser(JSON.parse(stored));
-            } catch {
-                setUser(null);
-            }
-        }
+        fetchFreshUser();
+        // Refresh when window regains focus
+        const onFocus = () => fetchFreshUser();
+        window.addEventListener("focus", onFocus);
+        return () => window.removeEventListener("focus", onFocus);
     }, []);
 
     const recentPosts = user?.forums
@@ -118,9 +143,6 @@ function Dashboard() {
                                                     <Link to={`/forum/${forum.id}`} className="forum-link">
                                                         {forum.course_name}
                                                     </Link>
-                                                    <div className="forum-desc">
-                                                        {forum.description || "No description provided"}
-                                                    </div>
                                                 </td>
                                                 <td>{threads}</td>
                                                 <td>{posts}</td>

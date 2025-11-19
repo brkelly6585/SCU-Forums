@@ -34,63 +34,45 @@ function Profile() {
   });
   const [error, setError] = useState<string>("");
 
-  // Load profile data
+  // Always fetch latest profile data from backend (self or external).
   const handleGetProfile = async () => {
     setError("");
-
-    const stored = sessionStorage.getItem("user");
-    console.log(username);
-    if (stored) {
-      try {
-        const user = JSON.parse(stored);
-
-        // Map backend field names -> frontend state
-        const baseProfile: ProfileData = {
-          id: user.id,
-          fName: user.first_name || "",
-          lName: user.last_name || "",
-          username: user.username || "",
-          major: user.major || "",
-          email: user.email || "",
-          grade: user.year || "",
-          courses: user.courses || "CSEN174, CSEN160, HIST79",
-          interests: user.interests || "N/A",
-        };
-        setExternal(false);
-        setProfile(baseProfile);
-
-        if (username && username.length > 0 && username != user.username) {
-          try {
-            const resp = await fetch(
-              `http://127.0.0.1:5000/api/users_name/${username}`
-            );
-
-            if (resp.ok) {
-              const data = await resp.json();
-
-              const freshProfile: ProfileData = {
-                id: data.id ?? user.id,
-                fName: data.first_name ?? baseProfile.fName,
-                lName: data.last_name ?? baseProfile.lName,
-                username: data.username ?? baseProfile.username,
-                major: data.major ?? baseProfile.major,
-                email: data.email ?? baseProfile.email,
-                grade: data.year ?? baseProfile.grade,
-                courses: data.courses ?? baseProfile.courses,
-                interests: data.interests ?? baseProfile.interests,
-              };
-
-              setProfile(freshProfile);
-              setExternal(true);
-            }
-          } catch {
-            // If backend fetch fails, we silently keep sessionStorage data
-            console.warn("Could not refresh profile from backend");
-          }
-        }
-      } catch (e) {
-        console.warn("Invalid user data in sessionStorage", e);
+    const storedRaw = sessionStorage.getItem("user");
+    let storedUser: any = null;
+    try { storedUser = storedRaw ? JSON.parse(storedRaw) : null; } catch {}
+    const effectiveUsername = username || storedUser?.username;
+    if (!effectiveUsername) {
+      setError("No user context available.");
+      return;
+    }
+    try {
+      const resp = await fetch(`http://127.0.0.1:5000/api/users_name/${effectiveUsername}`);
+      if (!resp.ok) {
+        throw new Error("Failed to fetch profile from backend");
       }
+      const data = await resp.json();
+      const viewingOwn = storedUser && storedUser.username === effectiveUsername;
+      setExternal(!viewingOwn);
+      const mapped: ProfileData = {
+        id: data.id,
+        fName: data.first_name || "",
+        lName: data.last_name || "",
+        username: data.username || "",
+        major: data.major || "",
+        email: data.email || "",
+        grade: data.year || "",
+        courses: storedUser?.courses || "CSEN174, CSEN160, HIST79", // local-only
+        interests: storedUser?.interests || "N/A", // local-only
+      };
+      setProfile(mapped);
+      // Refresh sessionStorage if own profile to maintain newest data
+      if (viewingOwn) {
+        const mergedForStorage = { ...data, courses: mapped.courses, interests: mapped.interests };
+        sessionStorage.setItem("user", JSON.stringify(mergedForStorage));
+      }
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "Unable to load profile.");
     }
   };
 
@@ -98,24 +80,27 @@ function Profile() {
   const handleSaveProfile = async () => {
     setError("");
 
-    // Map frontend state keys to backend field names
+    // Backend does not allow email modification; omit email, courses, interests (frontend-only)
+    // Convert grade to number if possible
+    const numericYear = !isNaN(Number(profile.grade)) ? Number(profile.grade) : profile.grade;
     const payload = {
       id: profile.id,
       first_name: profile.fName,
       last_name: profile.lName,
       username: profile.username,
       major: profile.major,
-      email: profile.email,
-      year: profile.grade,
-      courses: profile.courses,
-      interests: profile.interests,
+      year: numericYear,
     };
 
+    if (!profile.id) {
+      setError("Cannot save: missing user id.");
+      return;
+    }
     try {
       const resp = await fetch("http://127.0.0.1:5000/api/profile/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include", // relies on updated CORS backend
         body: JSON.stringify(payload),
       });
 
@@ -124,10 +109,26 @@ function Profile() {
         throw new Error(data?.error || "Failed to save profile");
       }
 
-      // If backend returns updated user object, keep everything in sync
       const updatedUser = await resp.json().catch(() => null);
       if (updatedUser) {
-        sessionStorage.setItem("user", JSON.stringify(updatedUser));
+        // Persist updated user immediately (retain local-only fields)
+        const extendedUser = {
+          ...updatedUser,
+          courses: profile.courses,
+          interests: profile.interests,
+        };
+        sessionStorage.setItem("user", JSON.stringify(extendedUser));
+        // Update local state directly from response
+        setProfile((prev) => ({
+          ...prev,
+            id: extendedUser.id,
+            fName: extendedUser.first_name || "",
+            lName: extendedUser.last_name || "",
+            username: extendedUser.username || prev.username,
+            major: extendedUser.major || prev.major,
+            email: extendedUser.email || prev.email,
+            grade: extendedUser.year || prev.grade,
+        }));
       }
 
       setToggle(true);
@@ -177,7 +178,7 @@ function Profile() {
                 <input
                   type="text"
                   value={val ?? ""}
-                  disabled={infoToggle}
+                  disabled={infoToggle || key === "email"} // email immutable
                   onChange={(e) =>
                     handleChange(key as keyof ProfileData, e.target.value)
                   }

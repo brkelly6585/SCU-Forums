@@ -37,6 +37,8 @@ class UserModel(Base):
     year = Column(Integer, nullable=False)
     is_deleted = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
 
     posts = relationship("PostModel", back_populates="poster")
     reactions = relationship("ReactionModel", back_populates="user")

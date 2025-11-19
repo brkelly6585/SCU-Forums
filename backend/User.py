@@ -40,7 +40,7 @@ class User:
         finally:
             session.close()
 
-    def __init__(self, username: str, email: str, major: str, year: int, posts: Optional[List[Post]], forum: Optional[List[Forum]], reactions: Optional[List[Forum]], is_admin: bool = False) -> None:
+    def __init__(self, username: str, email: str, major: str, year: int, posts: Optional[List[Post]], forum: Optional[List[Forum]], reactions: Optional[List[Forum]], is_admin: bool = False, **kwargs) -> None:
         # If this wrapper already has a db_id, skip
         if getattr(self, 'db_id', None) is not None:
             return
@@ -80,13 +80,24 @@ class User:
         self.email: str = email
         self.major: str = major
         self.year: int = year
+        self.first_name: str = kwargs.get('first_name', '') if isinstance(kwargs.get('first_name', ''), str) else ''
+        self.last_name: str = kwargs.get('last_name', '') if isinstance(kwargs.get('last_name', ''), str) else ''
         self.posts: List[Post] = posts if posts is not None else []
         self.forum: List[Forum] = forum if forum is not None else []
         self.reactions: List[Reaction] = reactions if reactions is not None else []
         self.is_admin: bool = bool(is_admin)
         # persist to DB
         session = SessionLocal()
-        user_model = UserModel(username=self.username, email=self.email, major=self.major, year=self.year, is_deleted=self.is_deleted, is_admin=self.is_admin)
+        user_model = UserModel(
+            username=self.username,
+            email=self.email,
+            major=self.major,
+            year=self.year,
+            is_deleted=self.is_deleted,
+            is_admin=self.is_admin,
+            first_name=self.first_name,
+            last_name=self.last_name
+        )
         session.add(user_model)
         session.commit()
         session.refresh(user_model)
@@ -203,6 +214,8 @@ class User:
         u.email = user_model.email
         u.major = user_model.major
         u.year = int(user_model.year)
+        u.first_name = getattr(user_model, 'first_name', '') or ''
+        u.last_name = getattr(user_model, 'last_name', '') or ''
         u.posts = []
         u.forum = []
         u.reactions = []

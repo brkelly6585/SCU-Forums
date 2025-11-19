@@ -134,12 +134,7 @@ function Forum() {
               value={newClassName}
               onChange={(e) => setNewClassName(e.target.value)}
             />
-            <input
-              type="text"
-              placeholder="Enter description..."
-              value={newClassDescription}
-              onChange={(e) => setNewClassDescription(e.target.value)}
-            />
+            
             <button onClick={handleAddClass} disabled={loading}>
               {loading ? "Loading..." : "Add Class"}
             </button>

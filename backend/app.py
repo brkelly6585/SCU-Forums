@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from backend.User import User
 from backend.Forum import Forum
 from backend.Messages import Post
+from backend.db import SessionLocal
+from backend.models import UserModel
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
@@ -12,9 +14,16 @@ GOOGLE_ID = "437960362432-34e8ipa7a4ivuvu1jsq32u6qu6j51uf7.apps.googleuserconten
 # Simple CORS headers
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    origin = request.headers.get('Origin')
+    # Allow credentials: must echo exact origin, not '*'
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Vary'] = 'Origin'
+    else:
+        response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
 
 def _serialize_user(user: User):
@@ -24,6 +33,8 @@ def _serialize_user(user: User):
         'email': user.email,
         'major': user.major,
         'year': user.year,
+        'first_name': getattr(user, 'first_name', ''),
+        'last_name': getattr(user, 'last_name', ''),
         'is_deleted': user.is_deleted,
         'is_admin': getattr(user, 'is_admin', False),
         'forums': [
@@ -133,6 +144,8 @@ def create_user():
     username = data.get('username')
     major = data.get('major')
     year = data.get('year')
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
 
     if not email or not isinstance(email, str) or not email.endswith('@scu.edu'):
         return jsonify({'error': 'A valid scu.edu email is required'}), 400
@@ -158,7 +171,12 @@ def create_user():
         # Year may come as string from frontend; coerce if needed
         if isinstance(year, str) and year.isdigit():
             year = int(year)
-        new_user = User(username, email, major, year, None, None, None)
+        kwargs = {}
+        if isinstance(first_name, str):
+            kwargs['first_name'] = first_name
+        if isinstance(last_name, str):
+            kwargs['last_name'] = last_name
+        new_user = User(username, email, major, year, None, None, None, **kwargs)
         return jsonify(_serialize_user(new_user)), 201
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
@@ -255,16 +273,41 @@ def update_user_profile():
         return jsonify({'error': 'User not found'}), 404
 
     try:
+        dirty = False
         if 'username' in data and isinstance(data['username'], str):
             user.username = data['username']
+            dirty = True
         if 'major' in data and isinstance(data['major'], str):
             user.major = data['major']
+            dirty = True
         if 'year' in data:
             year = data['year']
             if isinstance(year, str) and year.isdigit():
                 year = int(year)
             if isinstance(year, int):
                 user.year = year
+                dirty = True
+        if 'first_name' in data and isinstance(data['first_name'], str):
+            user.first_name = data['first_name']
+            dirty = True
+        if 'last_name' in data and isinstance(data['last_name'], str):
+            user.last_name = data['last_name']
+            dirty = True
+
+        if dirty:
+            session = SessionLocal()
+            try:
+                model = session.get(UserModel, user.db_id)
+                if model:
+                    model.username = user.username
+                    model.major = user.major
+                    model.year = user.year
+                    model.first_name = user.first_name
+                    model.last_name = user.last_name
+                    session.add(model)
+                    session.commit()
+            finally:
+                session.close()
 
         return jsonify(_serialize_user(user)), 200
     except (ValueError, TypeError) as e:

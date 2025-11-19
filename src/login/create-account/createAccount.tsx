@@ -8,8 +8,8 @@ function CreateAccount() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [profile, setProfile] = useState({
-        First: "",
-        Last: "",
+        "First Name": "",
+        "Last Name": "",
         Username: "",
         Major: "",
         Year: "",
@@ -17,8 +17,8 @@ function CreateAccount() {
 
 
     const keyMap: Record<string, string> = {
-        First: "fName",
-        Last: "lName",
+        "First Name": "first_name",
+        "Last Name": "last_name",
         Username: "username",
         Major: "major",
         Year: "year",
