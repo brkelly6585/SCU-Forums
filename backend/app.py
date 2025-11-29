@@ -588,6 +588,42 @@ def post_comments(post_id):
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
     
+@app.route('/api/posts/react/<int:post_id>/<int:reaction_id>/<int:user_id>', methods=['GET', 'OPTIONS'])
+def add_reaction(post_id, reaction_id, user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    post = Post.load_by_id(post_id)
+    if post is None:
+        return jsonify({'error': 'Post not found'}), 404
+    user = User.load_by_db_id(user_id)
+    if user is None:
+        return jsonify({'error': 'Invalid commenting user'}), 404
+    
+    try:
+        from backend.Messages import Reaction
+        reaction_name = ""
+        match reaction_id:
+            case 1:
+                reaction_name = "like"
+            case 2:
+                reaction_name = "dislike"
+            case 3:
+                reaction_name = "heart"
+            case 4:
+                reaction_name = "flag"
+            case _:
+                raise ValueError()
+        
+        new_reaction = Reaction(reaction_name, user)
+        post.addreaction(new_reaction)
+
+        return jsonify({'message': 'Reaction created successfully'}), 201
+        
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+    
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
