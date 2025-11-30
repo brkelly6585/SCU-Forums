@@ -223,8 +223,10 @@ class Post:
             # get forum relationship id for serialization
             try:
                 p.forum_id = getattr(post_model, 'forum_id', None)
+                p.forum_name = getattr(post_model, 'forum_name', None)
             except Exception:
                 p.forum_id = None
+                p.forum_name = None
             p.parent = None
             # register wrapper
             register('Post', p.db_id, p)

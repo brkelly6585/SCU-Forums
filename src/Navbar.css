@@ -94,3 +94,8 @@
 .dropdown-menu button:hover {
     background-color: #f6f8fa;
 }
+
+.right-group{
+    display: flex;
+    flex-direction: row;
+}

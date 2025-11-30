@@ -76,6 +76,7 @@ def _serialize_post(post: Post):
     return {
         'id': post.db_id,
         'forum_id': getattr(post, 'forum_id', None),
+        'forum_name': getattr(post, 'forum_name', None),
         'title': post.title,
         'message': post.message,
         'poster': post.poster.username if post.poster else None,

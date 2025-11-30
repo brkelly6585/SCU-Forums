@@ -36,6 +36,7 @@ type reactionKey = "like" | "dislike" | "heart" | "flag";
 function Comment() {
     const { forumId, postId } = useParams();
     const navigate = useNavigate();
+    const [forumName, setForumName] = useState<string>("");
     const [postTitle, setPostTitle] = useState<string>("");
     const [postBody, setPostBody] = useState<string>("");
     const [postAuthor, setPostAuthor] = useState<string>("");
@@ -137,6 +138,41 @@ function Comment() {
         }
     }, [postForumId, forumId]);
 
+    const handleRecentForum = (forumValue: string) => {
+        if(!forumValue || !forumId) return;
+
+        console.log("Adding to recent forum");
+
+        const forumOne = sessionStorage.getItem("forumOne");
+        const forumOneId = sessionStorage.getItem("forumOneId");
+        const forumTwo = sessionStorage.getItem("forumTwo");
+        const forumTwoId = sessionStorage.getItem("forumTwoId");
+        sessionStorage.setItem("forumOne", forumValue);
+        sessionStorage.setItem("forumOneId", forumId);
+        // Check if forum is already in list
+        if(forumValue == forumOne){
+            console.log("Case 1");
+            return;
+        }
+        else if(forumValue == forumTwo && (forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId)))){
+            console.log("Case 2");
+            sessionStorage.setItem("forumTwo", forumOne);
+            sessionStorage.setItem("forumTwoId", forumOneId);
+            
+        }else{
+            // Standard logic
+            if(forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId))){
+                sessionStorage.setItem("forumTwo", forumOne)
+                sessionStorage.setItem("forumTwoId", forumOneId)
+                if(forumTwo && forumTwo.length > 0 && forumTwoId && !isNaN(Number(forumTwoId))){
+                    sessionStorage.setItem("forumThree", forumTwo);
+                    sessionStorage.setItem("forumThreeId", forumTwoId);
+                }
+            }
+        }
+
+    }
+
     const handleGetPostInfo = async () => {
         setError("");
         if (!postId) return;
@@ -151,6 +187,10 @@ function Comment() {
                 console.log(data);
                 if (data.forum_id) {
                     setPostForumId(data.forum_id);
+                }
+                if(data.forum_name){
+                    setForumName(data.forum_name);
+                    handleRecentForum(data.forum_name);
                 }
                 if(data.reactions && data.reactions.length > 0){
                     setPostLCount(data.reactions.filter((r: any) => r.reaction_type === 'like').length)
@@ -285,7 +325,7 @@ function Comment() {
                 <h2>{postTitle}</h2>
                 <div className="comment-breadcrumb">
                     <Link to="/forum">Forums</Link> <span>/</span>
-                    <Link to={`/forum/${forumId}`}>{forumId}</Link> <span>/</span>
+                    <Link to={`/forum/${forumId}`}>{forumName}</Link> <span>/</span>
                     <span>{postTitle}</span>
                 </div>
             </div>

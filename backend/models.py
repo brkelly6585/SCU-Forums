@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, Table, DateTime
 from datetime import datetime
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from .db import Base
 
 # Standard table for users in forums
@@ -69,6 +70,10 @@ class PostModel(Base):
     forum = relationship("ForumModel", back_populates="posts")
     comments = relationship("PostModel")
     reactions = relationship("ReactionModel", back_populates="parent")
+
+    @hybrid_property
+    def forum_name(self):
+        return self.forum.course_name if self.forum else None
 
 
 class ReactionModel(Base):

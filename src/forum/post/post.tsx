@@ -64,6 +64,7 @@ function Post() {
             if (resp.ok && data) {
                 if (data.course_name) {
                     setForumTitle(data.course_name);
+                    handleRecentForum(data.course_name);
                 }
                 if (data.posts) {
                     const mapped = data.posts.map((p: any) => ({
@@ -97,6 +98,41 @@ function Post() {
             setLoading(false);
         }
     };
+
+    const handleRecentForum = (forumValue: string) => {
+        if(!forumValue || !forumId) return;
+
+        console.log("Adding to recent forum");
+
+        const forumOne = sessionStorage.getItem("forumOne");
+        const forumOneId = sessionStorage.getItem("forumOneId");
+        const forumTwo = sessionStorage.getItem("forumTwo");
+        const forumTwoId = sessionStorage.getItem("forumTwoId");
+        sessionStorage.setItem("forumOne", forumValue);
+        sessionStorage.setItem("forumOneId", forumId);
+        // Check if forum is already in list
+        if(forumValue == forumOne){
+            console.log("Case 1");
+            return;
+        }
+        else if(forumValue == forumTwo && (forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId)))){
+            console.log("Case 2");
+            sessionStorage.setItem("forumTwo", forumOne);
+            sessionStorage.setItem("forumTwoId", forumOneId);
+            
+        }else{
+            // Standard logic
+            if(forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId))){
+                sessionStorage.setItem("forumTwo", forumOne)
+                sessionStorage.setItem("forumTwoId", forumOneId)
+                if(forumTwo && forumTwo.length > 0 && forumTwoId && !isNaN(Number(forumTwoId))){
+                    sessionStorage.setItem("forumThree", forumTwo);
+                    sessionStorage.setItem("forumThreeId", forumTwoId);
+                }
+            }
+        }
+
+    }
 
     const fetchRoleStatus = async () => {
         try {
