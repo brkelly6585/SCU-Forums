@@ -9,7 +9,14 @@
 .profile-section {
     width: 100%;
     max-width: 900px;
-    padding: 1.5rem;
+    padding: 2rem;
+    border: 1px solid #858585;
+    border-radius: 15px;
+    height: fit-content;
+}
+
+.profile-head {
+    margin-top: 0;
 }
 
 .profile-card {
@@ -131,4 +138,32 @@
     .profile-row {
         grid-template-columns: 1fr;
     }
+}
+
+.profile-field {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+.profile-input {
+    border-radius: 12px;
+    font-size: 1.2rem;
+    padding: 5px;
+    padding-left: 7px;
+    margin-top: 3px;
+    margin-left: 5px;
+}
+
+.input-enabled {
+    color: black;
+    border: 1px solid #2b2b2b;
+}
+
+.input-disabled {
+    color: #636363;
+    border: 1px solid #9c9c9c;
 }

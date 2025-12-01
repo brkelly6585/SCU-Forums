@@ -12,8 +12,6 @@ interface ProfileData {
   major: string;
   email: string;
   grade: string;
-  courses: string;
-  interests: string;
 }
 
 function Profile() {
@@ -29,8 +27,6 @@ function Profile() {
     major: "",
     email: "",
     grade: "",
-    courses: "CSEN174, CSEN160, HIST79",
-    interests: "N/A",
   });
   const [error, setError] = useState<string>("");
 
@@ -53,8 +49,6 @@ function Profile() {
           major: user.major || "",
           email: user.email || "",
           grade: user.year || "",
-          courses: user.courses || "CSEN174, CSEN160, HIST79",
-          interests: user.interests || "N/A",
         };
         setExternal(false);
         setProfile(baseProfile);
@@ -76,8 +70,6 @@ function Profile() {
                 major: data.major ?? baseProfile.major,
                 email: data.email ?? baseProfile.email,
                 grade: data.year ?? baseProfile.grade,
-                courses: data.courses ?? baseProfile.courses,
-                interests: data.interests ?? baseProfile.interests,
               };
 
               setProfile(freshProfile);
@@ -107,15 +99,12 @@ function Profile() {
       major: profile.major,
       email: profile.email,
       year: profile.grade,
-      courses: profile.courses,
-      interests: profile.interests,
     };
 
     try {
       const resp = await fetch("http://127.0.0.1:5000/api/profile/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -129,7 +118,7 @@ function Profile() {
       if (updatedUser) {
         sessionStorage.setItem("user", JSON.stringify(updatedUser));
       }
-
+      setError("Profile saved successfully!");
       setToggle(true);
     } catch (err: any) {
       console.error("Error saving profile:", err);
@@ -149,14 +138,14 @@ function Profile() {
     <div className="profile-container">
       <Navbar />
       <section className="profile-section">
-        <h2>Profile Information</h2>
+        <h2 className="profile-head">Profile Information</h2>
         {isExternal ? "" : <p className="profile-subtitle">
           View or edit your account details below.
         </p>}
 
         {error && <p className="error-text">{error}</p>}
 
-        <div className="profile-grid">
+        <div>
           {(
             Object.entries(profile) as [keyof ProfileData, string | number | undefined][]
           )
@@ -174,7 +163,7 @@ function Profile() {
                     : key.charAt(0).toUpperCase() + key.slice(1)}
                   :
                 </label>
-                <input
+                <input className={!infoToggle ? "profile-input input-enabled" : "profile-input input-disabled"}
                   type="text"
                   value={val ?? ""}
                   disabled={infoToggle}
