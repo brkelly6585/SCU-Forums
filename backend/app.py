@@ -480,7 +480,6 @@ def get_post_profile(post_id, user_id=None, forum_id=None):
         return jsonify({'error': 'Post does not belong to the specified user'}), 404
     if forum_id is not None and (getattr(post, 'forum_id', None) != forum_id):
         return jsonify({'error': 'Post does not belong to the specified forum'}), 404
-
     return jsonify(_serialize_post(post)), 200
     
 @app.route('/api/forums/<int:forum_id>/posts', methods=['GET', 'POST', 'OPTIONS'])
