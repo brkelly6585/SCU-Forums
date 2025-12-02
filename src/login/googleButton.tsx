@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 declare global {
     interface Window {
@@ -12,7 +12,7 @@ interface LoginButtonProps {
 }
 
 
-export default function LoginButton({ onSuccess }: LoginButtonProps){
+function LoginButton({ onSuccess }: LoginButtonProps){
     const buttonRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -35,3 +35,5 @@ export default function LoginButton({ onSuccess }: LoginButtonProps){
 
     return <div ref={buttonRef}></div>
 }
+
+export default LoginButton;

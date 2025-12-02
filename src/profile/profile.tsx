@@ -12,8 +12,6 @@ interface ProfileData {
   major: string;
   email: string;
   grade: string;
-  courses: string;
-  interests: string;
 }
 
 function Profile() {
@@ -29,8 +27,6 @@ function Profile() {
     major: "",
     email: "",
     grade: "",
-    courses: "CSEN174, CSEN160, HIST79",
-    interests: "N/A",
   });
   const [error, setError] = useState<string>("");
 
@@ -89,7 +85,8 @@ function Profile() {
       last_name: profile.lName,
       username: profile.username,
       major: profile.major,
-      year: numericYear,
+      email: profile.email,
+      year: profile.grade,
     };
 
     if (!profile.id) {
@@ -100,7 +97,6 @@ function Profile() {
       const resp = await fetch("http://127.0.0.1:5000/api/profile/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // relies on updated CORS backend
         body: JSON.stringify(payload),
       });
 
@@ -130,7 +126,7 @@ function Profile() {
             grade: extendedUser.year || prev.grade,
         }));
       }
-
+      setError("Profile saved successfully!");
       setToggle(true);
     } catch (err: any) {
       console.error("Error saving profile:", err);
@@ -150,14 +146,14 @@ function Profile() {
     <div className="profile-container">
       <Navbar />
       <section className="profile-section">
-        <h2>Profile Information</h2>
+        <h2 className="profile-head">Profile Information</h2>
         {isExternal ? "" : <p className="profile-subtitle">
           View or edit your account details below.
         </p>}
 
         {error && <p className="error-text">{error}</p>}
 
-        <div className="profile-grid">
+        <div>
           {(
             Object.entries(profile) as [keyof ProfileData, string | number | undefined][]
           )
@@ -175,7 +171,7 @@ function Profile() {
                     : key.charAt(0).toUpperCase() + key.slice(1)}
                   :
                 </label>
-                <input
+                <input className={!infoToggle ? "profile-input input-enabled" : "profile-input input-disabled"}
                   type="text"
                   value={val ?? ""}
                   disabled={infoToggle || key === "email"} // email immutable

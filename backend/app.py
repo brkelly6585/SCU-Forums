@@ -87,6 +87,7 @@ def _serialize_post(post: Post):
     return {
         'id': post.db_id,
         'forum_id': getattr(post, 'forum_id', None),
+        'forum_name': getattr(post, 'forum_name', None),
         'title': post.title,
         'message': post.message,
         'poster': post.poster.username if post.poster else None,
@@ -522,7 +523,6 @@ def get_post_profile(post_id, user_id=None, forum_id=None):
         return jsonify({'error': 'Post does not belong to the specified user'}), 404
     if forum_id is not None and (getattr(post, 'forum_id', None) != forum_id):
         return jsonify({'error': 'Post does not belong to the specified forum'}), 404
-
     return jsonify(_serialize_post(post)), 200
     
 @app.route('/api/forums/<int:forum_id>/posts', methods=['GET', 'POST', 'OPTIONS'])
@@ -630,6 +630,42 @@ def post_comments(post_id):
         return jsonify({'message': 'Comment created successfully', 'comment': _serialize_post(new_comment)}), 201
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
+    
+@app.route('/api/posts/react/<int:post_id>/<int:reaction_id>/<int:user_id>', methods=['GET', 'OPTIONS'])
+def add_reaction(post_id, reaction_id, user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    post = Post.load_by_id(post_id)
+    if post is None:
+        return jsonify({'error': 'Post not found'}), 404
+    user = User.load_by_db_id(user_id)
+    if user is None:
+        return jsonify({'error': 'Invalid commenting user'}), 404
+    
+    try:
+        from backend.Messages import Reaction
+        reaction_name = ""
+        match reaction_id:
+            case 1:
+                reaction_name = "like"
+            case 2:
+                reaction_name = "dislike"
+            case 3:
+                reaction_name = "heart"
+            case 4:
+                reaction_name = "flag"
+            case _:
+                raise ValueError()
+        
+        new_reaction = Reaction(reaction_name, user)
+        post.addreaction(new_reaction)
+
+        return jsonify({'message': 'Reaction created successfully'}), 201
+        
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+    
     
 
 if __name__ == '__main__':

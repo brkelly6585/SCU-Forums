@@ -11,6 +11,11 @@ interface Thread {
     replies: number;
     createdAt: string;
     is_deleted?: boolean;
+    reactions?: any;
+    likeCount?: number;
+    dislikeCount?: number;
+    heartCount?: number;
+    flagCount?: number;
 }
 
 interface ForumUser {
@@ -61,9 +66,11 @@ function Post() {
         try {
             const resp = await fetch(`http://127.0.0.1:5000/api/forums/${Number(forumId)}`);
             const data = await resp.json().catch(() => null);
+            console.log(data);
             if (resp.ok && data) {
                 if (data.course_name) {
                     setForumTitle(data.course_name);
+                    handleRecentForum(data.course_name);
                 }
                 if (data.posts) {
                     const mapped = data.posts.map((p: any) => ({
@@ -72,7 +79,12 @@ function Post() {
                         poster: p.poster,
                         replies: (p.comments && p.comments.length) || 0,
                         createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
-                        is_deleted: p.is_deleted
+                        is_deleted: p.is_deleted,
+                        reactions: p.reactions,
+                        likeCount: p.reactions.filter((r: any) => r.reaction_type === 'like').length,
+                        dislikeCount: p.reactions.filter((r: any) => r.reaction_type === 'dislike').length,
+                        heartCount: p.reactions.filter((r: any) => r.reaction_type === 'heart').length,
+                        flagCount: p.reactions.filter((r: any) => r.reaction_type === 'flag').length
                     })) as Thread[];
                     console.log('Setting posts:', mapped);
                     setPosts(mapped);
@@ -100,6 +112,41 @@ function Post() {
             setLoading(false);
         }
     };
+
+    const handleRecentForum = (forumValue: string) => {
+        if(!forumValue || !forumId) return;
+
+        console.log("Adding to recent forum");
+
+        const forumOne = sessionStorage.getItem("forumOne");
+        const forumOneId = sessionStorage.getItem("forumOneId");
+        const forumTwo = sessionStorage.getItem("forumTwo");
+        const forumTwoId = sessionStorage.getItem("forumTwoId");
+        sessionStorage.setItem("forumOne", forumValue);
+        sessionStorage.setItem("forumOneId", forumId);
+        // Check if forum is already in list
+        if(forumValue == forumOne){
+            console.log("Case 1");
+            return;
+        }
+        else if(forumValue == forumTwo && (forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId)))){
+            console.log("Case 2");
+            sessionStorage.setItem("forumTwo", forumOne);
+            sessionStorage.setItem("forumTwoId", forumOneId);
+            
+        }else{
+            // Standard logic
+            if(forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId))){
+                sessionStorage.setItem("forumTwo", forumOne)
+                sessionStorage.setItem("forumTwoId", forumOneId)
+                if(forumTwo && forumTwo.length > 0 && forumTwoId && !isNaN(Number(forumTwoId))){
+                    sessionStorage.setItem("forumThree", forumTwo);
+                    sessionStorage.setItem("forumThreeId", forumTwoId);
+                }
+            }
+        }
+
+    }
 
     const fetchRoleStatus = async () => {
         try {
@@ -275,6 +322,7 @@ function Post() {
                 <div className="posts-list-wrapper">
                     <div className="posts-list-header">
                         <span className="col-title">Thread ({posts.length} posts)</span>
+                        <span className="col-small">Reactions</span>
                         <span className="col-small">Replies</span>
                         <span className="col-small">Created</span>
                     </div>
@@ -290,6 +338,12 @@ function Post() {
                                         {post.is_deleted ? '[deleted]' : post.title}
                                     </Link>
                                     <div className="post-meta">Started by {post.poster}</div>
+                                </div>
+                                <div className="post-reactions">
+                                    {(post.likeCount ?? 0) > 0 && <div>👍: {post.likeCount}</div>}
+                                    {(post.dislikeCount ?? 0) > 0 && <div>👎: {post.dislikeCount}</div>}
+                                    {(post.heartCount ?? 0) > 0 && <div>❤️: {post.heartCount}</div>}
+                                    {(post.flagCount ?? 0) > 0 && <div>🚩: {post.flagCount}</div>}
                                 </div>
                                 <div className="post-replies">{post.replies || 0}</div>
                                 <div className="post-date">{post.createdAt}</div>
