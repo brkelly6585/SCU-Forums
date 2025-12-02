@@ -47,7 +47,9 @@ function Dashboard() {
     const recentPosts = user?.forums
         ? user.forums
             .flatMap((f: any) =>
-                (f.posts || []).map((p: any) => ({ ...p, forum: f.course_name }))
+                (f.posts || [])
+                    .filter((p: any) => !p.is_deleted)
+                    .map((p: any) => ({ ...p, forum: f.course_name }))
             )
             .sort(
                 (a: any, b: any) =>
@@ -127,12 +129,13 @@ function Dashboard() {
                                 </thead>
                                 <tbody>
                                     {user.forums.map((forum: any, index: number) => {
-                                        const threads = forum.posts?.length || 0;
-                                        const posts = forum.posts?.reduce(
+                                        const activePosts = (forum.posts || []).filter((p: any) => !p.is_deleted);
+                                        const threads = activePosts.length;
+                                        const posts = activePosts.reduce(
                                             (sum: number, p: any) => sum + 1,
                                             0
                                         );
-                                        const comments = forum.posts?.reduce(
+                                        const comments = activePosts.reduce(
                                             (sum: number, p: any) => sum + (p.comments?.length || 0),
                                             0
                                         );

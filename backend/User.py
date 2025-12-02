@@ -6,7 +6,7 @@ import random
 if TYPE_CHECKING:
     from backend.Forum import Forum
 
-# Import DB helpers
+# DB imports
 from .db import SessionLocal, init_db
 from .models import UserModel
 from .object_registry import register, get as registry_get

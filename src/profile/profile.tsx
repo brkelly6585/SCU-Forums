@@ -57,13 +57,11 @@ function Profile() {
         major: data.major || "",
         email: data.email || "",
         grade: data.year || "",
-        courses: storedUser?.courses || "CSEN174, CSEN160, HIST79", // local-only
-        interests: storedUser?.interests || "N/A", // local-only
       };
       setProfile(mapped);
       // Refresh sessionStorage if own profile to maintain newest data
       if (viewingOwn) {
-        const mergedForStorage = { ...data, courses: mapped.courses, interests: mapped.interests };
+        const mergedForStorage = { ...data};
         sessionStorage.setItem("user", JSON.stringify(mergedForStorage));
       }
     } catch (e: any) {
@@ -110,8 +108,6 @@ function Profile() {
         // Persist updated user immediately (retain local-only fields)
         const extendedUser = {
           ...updatedUser,
-          courses: profile.courses,
-          interests: profile.interests,
         };
         sessionStorage.setItem("user", JSON.stringify(extendedUser));
         // Update local state directly from response

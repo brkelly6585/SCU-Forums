@@ -66,7 +66,6 @@ function Post() {
         try {
             const resp = await fetch(`http://127.0.0.1:5000/api/forums/${Number(forumId)}`);
             const data = await resp.json().catch(() => null);
-            console.log(data);
             if (resp.ok && data) {
                 if (data.course_name) {
                     setForumTitle(data.course_name);
@@ -78,7 +77,7 @@ function Post() {
                         title: p.title,
                         poster: p.poster,
                         replies: (p.comments && p.comments.length) || 0,
-                        createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
+                        createdAt: p.created_at ? new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : '',
                         is_deleted: p.is_deleted,
                         reactions: p.reactions,
                         likeCount: p.reactions.filter((r: any) => r.reaction_type === 'like').length,
@@ -86,7 +85,6 @@ function Post() {
                         heartCount: p.reactions.filter((r: any) => r.reaction_type === 'heart').length,
                         flagCount: p.reactions.filter((r: any) => r.reaction_type === 'flag').length
                     })) as Thread[];
-                    console.log('Setting posts:', mapped);
                     setPosts(mapped);
                 }
                 if (data.users) {
@@ -100,7 +98,6 @@ function Post() {
                         is_authorized: authorizedIds.includes(u.id),
                         is_restricted: restrictedIds.includes(u.id)
                     }));
-                    console.log('Setting users:', mappedUsers);
                     setUsers(mappedUsers);
                 }
             } else {
@@ -116,8 +113,6 @@ function Post() {
     const handleRecentForum = (forumValue: string) => {
         if(!forumValue || !forumId) return;
 
-        console.log("Adding to recent forum");
-
         const forumOne = sessionStorage.getItem("forumOne");
         const forumOneId = sessionStorage.getItem("forumOneId");
         const forumTwo = sessionStorage.getItem("forumTwo");
@@ -126,11 +121,9 @@ function Post() {
         sessionStorage.setItem("forumOneId", forumId);
         // Check if forum is already in list
         if(forumValue == forumOne){
-            console.log("Case 1");
             return;
         }
         else if(forumValue == forumTwo && (forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId)))){
-            console.log("Case 2");
             sessionStorage.setItem("forumTwo", forumOne);
             sessionStorage.setItem("forumTwoId", forumOneId);
             
@@ -202,7 +195,7 @@ function Post() {
                     title: data.post.title,
                     poster: data.post.poster,
                     replies: 0,
-                    createdAt: data.post.created_at ? new Date(data.post.created_at).toLocaleDateString() : ''
+                    createdAt: data.post.created_at ? new Date(data.post.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : ''
                 };
                 setPosts([...posts, newPost]);
                 setNewPostTitle("");
@@ -237,6 +230,30 @@ function Post() {
                 setError(data?.error || 'Failed to update restriction');
             }
         } catch { setError('Network error updating restriction'); }
+    };
+
+    const leaveForum = async () => {
+        if (!window.confirm('Are you sure you want to leave this forum?')) {
+            return;
+        }
+        setError('');
+        try {
+            const stored = sessionStorage.getItem('user');
+            if (!stored) { setError('Login required'); return; }
+            const user = JSON.parse(stored);
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${forumId}/leave`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_email: user.email })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok) {
+                // Redirect to forums list after leaving
+                window.location.href = '/forum';
+            } else {
+                setError(data?.error || 'Failed to leave forum');
+            }
+        } catch { setError('Network error leaving forum'); }
     };
 
     const authorizeUser = async (userEmail: string) => {
@@ -279,6 +296,60 @@ function Post() {
         } catch { setError('Network error deauthorizing user'); }
     };
 
+    const joinForum = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const stored = sessionStorage.getItem('user');
+            if (!stored) { setError('Login required'); return; }
+            const user = JSON.parse(stored);
+            const resp = await fetch(`http://127.0.0.1:5000/api/users/${user.id}/forums`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ forum_id: Number(forumId) })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok) {
+                // Refresh the page to update member status
+                await handleGetPosts();
+                await fetchRoleStatus();
+            } else {
+                setError(data?.error || 'Failed to join forum');
+            }
+        } catch { setError('Network error joining forum'); }
+        finally { setLoading(false); }
+    };
+
+    const deleteForum = async () => {
+        if (!role.isAdmin) return;
+        if (!window.confirm('Delete this forum and all its content? This cannot be undone.')) {
+            return;
+        }
+        setError('');
+        setLoading(true);
+        try {
+            const stored = sessionStorage.getItem('user');
+            if (!stored) { setError('Login required'); setLoading(false); return; }
+            const actor = JSON.parse(stored);
+            const resp = await fetch(`http://127.0.0.1:5000/api/forums/${forumId}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_email: actor.email })
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok) {
+                // Redirect to forum list after deletion
+                window.location.href = '/forum';
+            } else {
+                setError(data?.error || 'Failed to delete forum');
+            }
+        } catch {
+            setError('Network error deleting forum');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="post-container">
             <Navbar />
@@ -287,9 +358,22 @@ function Post() {
                 <div className="post-breadcrumb">
                     <Link to="/forum">Forums</Link> <span>/</span> <span>{forumId}</span>
                 </div>
+                {/* Admin delete moved to bottom */}
             </div>
             {error && <p className="error-text">{error}</p>}
-            {!role.isRestricted && (
+            {!role.isMember && !role.isRestricted && (
+                <div style={{ padding: '1rem', backgroundColor: '#f6f8fa', border: '1px solid #d0d7de', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center' }}>
+                    <p style={{ margin: '0 0 0.75rem 0', color: '#24292f' }}>You are not a member of this forum.</p>
+                    <button 
+                        onClick={joinForum} 
+                        disabled={loading}
+                        style={{ padding: '8px 16px', backgroundColor: '#0969da', color: 'white', border: 'none', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '14px' }}
+                    >
+                        {loading ? 'Joining...' : 'Join Forum'}
+                    </button>
+                </div>
+            )}
+            {!role.isRestricted && role.isMember && (
                 <div className="new-post" aria-label="Create new thread">
                     <label className="field-label" htmlFor="thread-title">Title</label>
                     <input
@@ -318,7 +402,7 @@ function Post() {
             {role.isRestricted && (
                 <div className="restricted-banner">You are restricted in this forum and cannot view posts.</div>
             )}
-            {!role.isRestricted && (
+            {!role.isRestricted && role.isMember && (
                 <div className="posts-list-wrapper">
                     <div className="posts-list-header">
                         <span className="col-title">Thread ({posts.length} posts)</span>
@@ -337,7 +421,7 @@ function Post() {
                                     <Link to={`/forum/${forumId}/post/${post.id}`} className="post-link">
                                         {post.is_deleted ? '[deleted]' : post.title}
                                     </Link>
-                                    <div className="post-meta">Started by {post.poster}</div>
+                                    <div className="post-meta">Started by {post.is_deleted ? '[deleted]' : post.poster}</div>
                                 </div>
                                 <div className="post-reactions">
                                     {(post.likeCount ?? 0) > 0 && <div>👍: {post.likeCount}</div>}
@@ -353,50 +437,80 @@ function Post() {
                     </ul>
                 </div>
             )}
-            {!role.isRestricted && (
+            {!role.isRestricted && role.isMember && (
                 <div className="forum-users-panel">
                     <h3>Members ({users.length})</h3>
                     {users.length === 0 ? (
                         <p style={{color: '#6a737d', fontSize: '0.9rem'}}>No members yet.</p>
                     ) : (
                         <ul className="forum-users-list">
-                            {users.map(u => (
-                            <li key={u.id} className="forum-user-item">
-                                <div className="forum-user-row">
-                                    <Link to={`/profile/${u.username}`} className="forum-user-link">
-                                        {u.username}{u.is_admin ? ' (admin)' : ''}
-                                    </Link>
-                                    {(role.isAdmin || role.isAuthorized) && !u.is_admin && (
-                                        <button
-                                            className="user-actions-trigger"
-                                            aria-haspopup="true"
-                                            aria-expanded={openUserMenu === u.id}
-                                            onClick={() => setOpenUserMenu(openUserMenu === u.id ? null : u.id)}
-                                        >⋮</button>
-                                    )}
-                                </div>
-                                {openUserMenu === u.id && (
-                                    <div className="user-actions-inline" role="menu">
-                                        {role.isAdmin && !u.is_admin && (
-                                            u.is_authorized ? (
-                                                <button role="menuitem" onClick={() => { deauthorizeUser(u.email); setOpenUserMenu(null); }}>Deauth</button>
-                                            ) : (
-                                                <button role="menuitem" onClick={() => { authorizeUser(u.email); setOpenUserMenu(null); }}>Auth</button>
-                                            )
-                                        )}
-                                        {(role.isAdmin || role.isAuthorized) && !u.is_admin && (
-                                            u.is_restricted ? (
-                                                <button role="menuitem" onClick={() => { toggleRestriction(u.email, true); setOpenUserMenu(null); }}>Unrestrict</button>
-                                            ) : (
-                                                <button role="menuitem" onClick={() => { toggleRestriction(u.email, false); setOpenUserMenu(null); }}>Restrict</button>
-                                            )
+                            {users.map(u => {
+                                const stored = sessionStorage.getItem('user');
+                                const currentUser = stored ? JSON.parse(stored) : null;
+                                const isCurrentUser = currentUser && currentUser.email === u.email;
+                                
+                                return (
+                                <li key={u.id} className="forum-user-item">
+                                    <div className="forum-user-row">
+                                        <Link to={`/profile/${u.username}`} className="forum-user-link">
+                                            {u.username}{u.is_admin ? ' (admin)' : ''}
+                                        </Link>
+                                        {((role.isAdmin || role.isAuthorized) && !u.is_admin || isCurrentUser) && (
+                                            <button
+                                                className="user-actions-trigger"
+                                                aria-haspopup="true"
+                                                aria-expanded={openUserMenu === u.id}
+                                                onClick={() => setOpenUserMenu(openUserMenu === u.id ? null : u.id)}
+                                            >⋮</button>
                                         )}
                                     </div>
-                                )}
-                            </li>
-                        ))}
+                                    {openUserMenu === u.id && (
+                                        <div className="user-actions-inline" role="menu">
+                                            {role.isAdmin && !u.is_admin && (
+                                                u.is_authorized ? (
+                                                    <button role="menuitem" onClick={() => { deauthorizeUser(u.email); setOpenUserMenu(null); }}>Deauth</button>
+                                                ) : (
+                                                    <button role="menuitem" onClick={() => { authorizeUser(u.email); setOpenUserMenu(null); }}>Auth</button>
+                                                )
+                                            )}
+                                            {(role.isAdmin || role.isAuthorized) && !u.is_admin && (
+                                                u.is_restricted ? (
+                                                    <button role="menuitem" onClick={() => { toggleRestriction(u.email, true); setOpenUserMenu(null); }}>Unrestrict</button>
+                                                ) : (
+                                                    <button role="menuitem" onClick={() => { toggleRestriction(u.email, false); setOpenUserMenu(null); }}>Restrict</button>
+                                                )
+                                            )}
+                                            {isCurrentUser && (
+                                                <button role="menuitem" onClick={() => { leaveForum(); setOpenUserMenu(null); }}>Leave Forum</button>
+                                            )}
+                                        </div>
+                                    )}
+                                </li>
+                            );})}
                         </ul>
                     )}
+                </div>
+            )}
+            {/* Bottom admin actions */}
+            {role.isAdmin && (
+                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #d0d7de', display: 'flex', justifyContent: 'center' }}>
+                    <button
+                        onClick={deleteForum}
+                        disabled={loading}
+                        style={{
+                            padding: '8px 14px',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            fontSize: '14px'
+                        }}
+                        aria-label="Delete forum"
+                        title="Delete forum"
+                    >
+                        {loading ? 'Working...' : 'Delete Forum'}
+                    </button>
                 </div>
             )}
         </div>

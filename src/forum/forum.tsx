@@ -40,7 +40,7 @@ function Forum() {
           threads: f.posts?.length || 0,
           posts: f.posts?.length || 0,
           comments: f.posts?.reduce((sum: number, p: any) => sum + (p.comments?.length || 0), 0) || 0,
-          lastActivity: f.created_at ? new Date(f.created_at).toLocaleDateString() : "N/A"
+          lastActivity: f.created_at ? new Date(f.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : "N/A"
         }));
         setForums(mapped);
       } else {

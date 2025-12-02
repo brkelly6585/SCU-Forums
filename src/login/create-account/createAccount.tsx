@@ -43,7 +43,6 @@ function CreateAccount() {
         const  info: Record<string, any> = {};
         for (const [key, value] of Object.entries(profile)) {
             if(!value || value.length == 0){
-                console.log("Empty field", key);
                 setError("All fields must be filled out before account creation");
                 return;
             }else{

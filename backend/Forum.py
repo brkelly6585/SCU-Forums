@@ -2,6 +2,7 @@ from typing import List
 from backend.Messages import Post, Comment
 from backend.User import User
 
+# DB imports
 from .db import SessionLocal, init_db
 from .models import ForumModel, UserModel, PostModel
 from .object_registry import register, get as registry_get

@@ -26,6 +26,8 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
 
+
+
 def _serialize_user(user: User):
     return {
         'id': user.db_id,
@@ -47,11 +49,13 @@ def _serialize_user(user: User):
         ]
     }
 
+
+
 def _serialize_forum(forum: Forum):
     return {
         'id': forum.db_id,
         'course_name': forum.course_name,
-        'created_at': getattr(forum, 'created_at', None).isoformat() if getattr(forum, 'created_at', None) else None,
+        'created_at': (getattr(forum, 'created_at', None).isoformat() + 'Z') if getattr(forum, 'created_at', None) else None,
         'posts': [
             _serialize_post(post)
             for post in forum.getPosts()
@@ -83,6 +87,8 @@ def _serialize_forum(forum: Forum):
         ]
     }
 
+
+
 def _serialize_post(post: Post):
     return {
         'id': post.db_id,
@@ -92,7 +98,7 @@ def _serialize_post(post: Post):
         'message': post.message,
         'poster': post.poster.username if post.poster else None,
         'is_deleted': post.is_deleted,
-        'created_at': getattr(post, 'created_at', None).isoformat() if getattr(post, 'created_at', None) else None,
+        'created_at': (getattr(post, 'created_at', None).isoformat() + 'Z') if getattr(post, 'created_at', None) else None,
         'reactions': [
             {
                 'id': reaction.db_id,
@@ -103,6 +109,8 @@ def _serialize_post(post: Post):
         ],
         'comments': [_serialize_post(comment) for comment in post.getcomments()]
     }
+
+
 
 @app.route('/api/googlelogin', methods=['POST', 'OPTIONS'])
 def googlelogin():
@@ -132,7 +140,8 @@ def googlelogin():
             return jsonify({'error': 'User not found', 'email': email}), 404
     except ValueError:
         return jsonify({'error': 'Invalid Google token'}), 401
-    
+
+
     
 @app.route('/api/create_user', methods=['POST', 'OPTIONS'])
 def create_user():
@@ -182,6 +191,8 @@ def create_user():
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
 @app.route('/api/create_forum', methods=['POST', 'OPTIONS'])
 def create_forum():
     if request.method == 'OPTIONS':
@@ -215,6 +226,8 @@ def create_forum():
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
 @app.route('/api/forums', methods=['GET', 'OPTIONS'])
 def list_forums():
     if request.method == 'OPTIONS':
@@ -223,6 +236,8 @@ def list_forums():
     forums = Forum.load_all_forums()
     serialized_forums = [_serialize_forum(forum) for forum in forums]
     return jsonify({'forums': serialized_forums}), 200
+
+
 
 @app.route('/api/users/<int:user_id>/forums', methods=['POST', 'OPTIONS'])
 def user_add_forum(user_id):
@@ -246,7 +261,9 @@ def user_add_forum(user_id):
         return jsonify({'message': 'User added to forum successfully'}), 200
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
-    
+
+
+
 @app.route('/api/users_name/<string:username>', methods=['GET', 'OPTIONS'])
 def get_user_profile_by_name(username):
     if request.method == 'OPTIONS':
@@ -257,6 +274,8 @@ def get_user_profile_by_name(username):
         return jsonify({'error': 'User not found'}), 404
 
     return jsonify(_serialize_user(user)), 200
+
+
 
 @app.route('/api/profile/update', methods=['POST', 'OPTIONS'])
 def update_user_profile():
@@ -314,6 +333,8 @@ def update_user_profile():
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
 @app.route('/api/forums/<int:forum_id>', methods=['GET', 'OPTIONS'])
 def get_forum_profile(forum_id):
     if request.method == 'OPTIONS':
@@ -325,6 +346,8 @@ def get_forum_profile(forum_id):
 
     return jsonify(_serialize_forum(forum)), 200
 
+
+
 def _require_admin(admin_email: str):
     if not admin_email:
         return None, jsonify({'error': 'admin_email is required'}), 400
@@ -334,6 +357,8 @@ def _require_admin(admin_email: str):
     if not getattr(admin_user, 'is_admin', False):
         return None, jsonify({'error': 'User is not an admin'}), 403
     return admin_user, None, None
+
+
 
 def _require_admin_or_authorized(actor_email: str, forum: Forum):
     if not actor_email:
@@ -349,6 +374,8 @@ def _require_admin_or_authorized(actor_email: str, forum: Forum):
     if actor.db_id in authorized_ids:
         return actor, None, None
     return None, jsonify({'error': 'User lacks permission (admin or authorized required)'}), 403
+
+
 
 @app.route('/api/forums/<int:forum_id>/authorize_user', methods=['POST', 'OPTIONS'])
 def authorize_user(forum_id):
@@ -372,6 +399,8 @@ def authorize_user(forum_id):
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
 @app.route('/api/forums/<int:forum_id>/deauthorize_user', methods=['POST', 'OPTIONS'])
 def deauthorize_user(forum_id):
     if request.method == 'OPTIONS':
@@ -393,6 +422,8 @@ def deauthorize_user(forum_id):
         return jsonify({'message': 'User deauthorized', 'forum': _serialize_forum(forum)}), 200
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
+
+
 
 @app.route('/api/forums/<int:forum_id>/restrict_user', methods=['POST', 'OPTIONS'])
 def restrict_user(forum_id):
@@ -417,6 +448,8 @@ def restrict_user(forum_id):
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
 @app.route('/api/forums/<int:forum_id>/unrestrict_user', methods=['POST', 'OPTIONS'])
 def unrestrict_user(forum_id):
     if request.method == 'OPTIONS':
@@ -439,6 +472,107 @@ def unrestrict_user(forum_id):
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
 
+
+
+@app.route('/api/forums/<int:forum_id>/leave', methods=['POST', 'OPTIONS'])
+def leave_forum(forum_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    user_email = data.get('user_email')
+    
+    if not user_email:
+        return jsonify({'error': 'user_email is required'}), 400
+    
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+    
+    user = User.load_by_email(user_email)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    
+    try:
+        forum.removeUser(user)
+        user.removeForum(forum)
+        return jsonify({'message': 'Successfully left forum'}), 200
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/forums/<int:forum_id>/delete', methods=['POST', 'OPTIONS'])
+def delete_forum(forum_id):
+    """Admin-only: Permanently delete a forum, remove all posts/comments/reactions, and detach all users."""
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    data = request.get_json(silent=True) or {}
+    admin_email = data.get('admin_email') or data.get('actor_email')
+
+    # Require admin
+    admin_user, err_resp, status = _require_admin(admin_email)
+    if err_resp:
+        return err_resp, status
+
+    forum = Forum.load_by_id(forum_id)
+    if forum is None:
+        return jsonify({'error': 'Forum not found'}), 404
+
+    # Perform cascading deletion using direct DB operations
+    try:
+        from .db import SessionLocal
+        from .models import ForumModel, PostModel, ReactionModel, forum_users, forum_authorized, forum_restricted
+    except Exception:
+        from backend.db import SessionLocal
+        from backend.models import ForumModel, PostModel, ReactionModel, forum_users, forum_authorized, forum_restricted
+
+    session = SessionLocal()
+    try:
+        forum_model = session.get(ForumModel, forum_id)
+        if forum_model is None:
+            return jsonify({'error': 'Forum not found'}), 404
+
+        # Collect all post ids belonging to the forum (top-level posts)
+        top_posts = session.query(PostModel).filter(PostModel.forum_id == forum_model.id).all()
+        to_delete_ids = set(p.id for p in top_posts)
+
+        # Iteratively collect all descendant comment ids
+        # We traverse by repeatedly finding posts whose parent_id is in to_delete_ids
+        changed = True
+        while changed:
+            changed = False
+            child_posts = session.query(PostModel).filter(PostModel.parent_id.in_(to_delete_ids)).all() if to_delete_ids else []
+            new_ids = [cp.id for cp in child_posts if cp.id not in to_delete_ids]
+            if new_ids:
+                to_delete_ids.update(new_ids)
+                changed = True
+
+        # Delete reactions tied to any of these posts/comments
+        if to_delete_ids:
+            session.query(ReactionModel).filter(ReactionModel.parent_id.in_(to_delete_ids)).delete(synchronize_session=False)
+
+        # Delete posts/comments themselves
+        if to_delete_ids:
+            session.query(PostModel).filter(PostModel.id.in_(to_delete_ids)).delete(synchronize_session=False)
+
+        # Detach all user associations (members, authorized, restricted)
+        session.execute(forum_users.delete().where(forum_users.c.forum_id == forum_model.id))
+        session.execute(forum_authorized.delete().where(forum_authorized.c.forum_id == forum_model.id))
+        session.execute(forum_restricted.delete().where(forum_restricted.c.forum_id == forum_model.id))
+
+        # Finally delete the forum itself
+        session.delete(forum_model)
+        session.commit()
+
+        return jsonify({'message': 'Forum deleted successfully'}), 200
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+
 @app.route('/api/posts/<int:post_id>/delete', methods=['POST', 'OPTIONS'])
 def delete_post(post_id):
     if request.method == 'OPTIONS':
@@ -448,18 +582,31 @@ def delete_post(post_id):
     post = Post.load_by_id(post_id)
     if post is None:
         return jsonify({'error': 'Post not found'}), 404
-    # Load forum to check authorization if not admin
-    try:
-        from backend.Forum import Forum as ForumClass
-        forum_id = getattr(post, 'forum_id', None)
-        forum = ForumClass.load_by_id(forum_id) if forum_id else None
-    except Exception:
-        forum = None
-    if forum is None and not getattr(User.load_by_email(actor_email), 'is_admin', False):
-        return jsonify({'error': 'Forum context required for authorized user'}), 400
-    actor, err_resp, status = _require_admin_or_authorized(actor_email, forum) if forum else _require_admin(actor_email)
-    if err_resp:
-        return err_resp, status
+    
+    # Get the actor user
+    actor_user = User.load_by_email(actor_email)
+    if actor_user is None:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Check if user is the post owner
+    post_owner = post.getposter()
+    is_owner = post_owner and getattr(post_owner, 'db_id', None) == getattr(actor_user, 'db_id', None)
+    
+    # If not the owner, check admin/authorized permissions
+    if not is_owner:
+        # Load forum to check authorization if not admin
+        try:
+            from backend.Forum import Forum as ForumClass
+            forum_id = getattr(post, 'forum_id', None)
+            forum = ForumClass.load_by_id(forum_id) if forum_id else None
+        except Exception:
+            forum = None
+        if forum is None and not getattr(actor_user, 'is_admin', False):
+            return jsonify({'error': 'Forum context required for authorized user'}), 400
+        actor, err_resp, status = _require_admin_or_authorized(actor_email, forum) if forum else _require_admin(actor_email)
+        if err_resp:
+            return err_resp, status
+    
     # Soft delete: set is_deleted flag
     post.is_deleted = True
     try:
@@ -476,6 +623,73 @@ def delete_post(post_id):
         session.commit()
     session.close()
     return jsonify({'message': 'Post deleted', 'post': _serialize_post(post)}), 200
+
+
+
+@app.route('/api/comments/<int:comment_id>/delete', methods=['POST', 'OPTIONS'])
+def delete_comment(comment_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    actor_email = data.get('actor_email') or data.get('admin_email')
+    
+    # Load comment (which is a Post/Comment object)
+    from backend.Messages import Comment as CommentClass
+    comment = CommentClass.load_by_id(comment_id)
+    if comment is None:
+        return jsonify({'error': 'Comment not found'}), 404
+    
+    # Get the actor user
+    actor_user = User.load_by_email(actor_email)
+    if actor_user is None:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Check if user is the comment owner
+    comment_owner = comment.getposter()
+    is_owner = comment_owner and getattr(comment_owner, 'db_id', None) == getattr(actor_user, 'db_id', None)
+    
+    # If not the owner, check admin/authorized permissions
+    if not is_owner:
+        # Load forum to check authorization if not admin
+        try:
+            from backend.Forum import Forum as ForumClass
+            forum_id = getattr(comment, 'forum_id', None)
+            forum = ForumClass.load_by_id(forum_id) if forum_id else None
+        except Exception:
+            forum = None
+        
+        if forum is None and not getattr(actor_user, 'is_admin', False):
+            return jsonify({'error': 'Forum context required for authorized user'}), 400
+        
+        actor, err_resp, status = _require_admin_or_authorized(actor_email, forum) if forum else _require_admin(actor_email)
+        if err_resp:
+            return err_resp, status
+    
+    # Soft delete: set is_deleted flag and replace message
+    comment.is_deleted = True
+    comment.message = '[deleted]'
+    comment.title = '[deleted]'
+    
+    try:
+        from .db import SessionLocal
+        from .models import PostModel
+    except Exception:
+        from backend.db import SessionLocal
+        from backend.models import PostModel
+    
+    session = SessionLocal()
+    comment_model = session.get(PostModel, getattr(comment, 'db_id', None))
+    if comment_model is not None:
+        comment_model.is_deleted = True
+        comment_model.message = '[deleted]'
+        comment_model.title = '[deleted]'
+        session.add(comment_model)
+        session.commit()
+    session.close()
+    
+    return jsonify({'message': 'Comment deleted successfully'}), 200
+
+
 
 @app.route('/api/forums/<int:forum_id>/user_status', methods=['GET','OPTIONS'])
 def forum_user_status(forum_id):
@@ -510,6 +724,8 @@ def forum_user_status(forum_id):
         'is_authorized': is_authorized,
         'is_restricted': is_restricted
     }), 200
+
+
 
 @app.route('/api/posts/<int:post_id>', methods=['GET', 'OPTIONS'])
 def get_post_profile(post_id, user_id=None, forum_id=None):
@@ -616,8 +832,12 @@ def post_comments(post_id):
         from backend.Messages import Comment
         
         # Determine the parent
-        if parent_comment_id:
-            parent = Post.load_by_id(parent_comment_id)
+        if parent_comment_id is not None:
+            try:
+                pid = int(parent_comment_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid parent_comment_id'}), 400
+            parent = Post.load_by_id(pid)
             if parent is None:
                 return jsonify({'error': 'Parent comment not found'}), 404
         else:
@@ -646,22 +866,24 @@ def add_reaction(post_id, reaction_id, user_id):
     try:
         from backend.Messages import Reaction
         reaction_name = ""
-        match reaction_id:
-            case 1:
-                reaction_name = "like"
-            case 2:
-                reaction_name = "dislike"
-            case 3:
-                reaction_name = "heart"
-            case 4:
-                reaction_name = "flag"
-            case _:
-                raise ValueError()
+        if reaction_id == 1:
+            reaction_name = "like"
+        elif reaction_id == 2:
+            reaction_name = "dislike"
+        elif reaction_id == 3:
+            reaction_name = "heart"
+        elif reaction_id == 4:
+            reaction_name = "flag"
+        else:
+            raise ValueError()
         
         new_reaction = Reaction(reaction_name, user)
-        post.addreaction(new_reaction)
+        added = post.addreaction(new_reaction)
 
-        return jsonify({'message': 'Reaction created successfully'}), 201
+        if added:
+            return jsonify({'message': 'Reaction added successfully', 'added': True}), 201
+        else:
+            return jsonify({'message': 'Reaction removed successfully', 'added': False}), 200
         
     except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400

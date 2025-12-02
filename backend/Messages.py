@@ -162,16 +162,31 @@ class Post:
     def editmessage(self, new_message: str) -> None:
         self.message = new_message
     
-    def addreaction(self, reaction: 'Reaction') -> None:
+    def addreaction(self, reaction: 'Reaction') -> bool:
+        """Add or remove reaction. Returns True if added, False if removed."""
         if not isinstance(reaction, Reaction):
             raise TypeError("reaction must be a Reaction instance")
             
         # Check if user already has a reaction of this type
         for existing_reaction in self.reactions:
             if existing_reaction == reaction:
-                raise ValueError("User already has this type of reaction on this post")
+                # if yes, toggle reaction off
+                self.reactions.remove(existing_reaction)
+                try:
+                    session = SessionLocal()
+                    from .models import ReactionModel
+                    reaction_model = session.get(ReactionModel, getattr(existing_reaction, 'db_id', None))
+                    if reaction_model is not None:
+                        session.delete(reaction_model)
+                        session.commit()
+                finally:
+                    try:
+                        session.close()
+                    except Exception:
+                        pass
+                return False  # Reaction removed
                 
-        # attach reaction to this post
+        # else toggle reaction on
         self.reactions.append(reaction)
         reaction.parent = self
         try:
@@ -187,6 +202,7 @@ class Post:
                 session.close()
             except Exception:
                 pass
+        return True  
 
     def __repr__(self) -> str:
         return f"Post(id={self.id!r}, title={self.title!r}, message={self.message!r}, comments={len(self.comments)})"
@@ -274,7 +290,8 @@ class Comment(Post):
         super().__init__(poster=poster, message=message, title=title, comments=comments, reactions=reactions)
         if not isinstance(parent, Post):
             raise TypeError("parent must be a Post instance")
-        if isinstance(parent, Comment) and parent.getmessage() == self.DELETED_MESSAGE:
+        # No commenting on a deleted comment
+        if isinstance(parent, Comment) and getattr(parent, 'message', None) == self.DELETED_MESSAGE:
             raise ValueError("Cannot comment on a deleted comment")
         # set parent and register this comment with the parent
         self.parent: Optional[Post] = None
