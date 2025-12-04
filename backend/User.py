@@ -11,13 +11,16 @@ from .db import SessionLocal, init_db
 from .models import UserModel
 from .object_registry import register, get as registry_get
 
+# Service imports
+from .user_services import UserRepository
+
 # Ensure DB tables exist
 init_db()
 
 
 class User:
     def __new__(cls, *args, **kwargs):
-        # Mainly to support Admin
+        # Allow kwargs for username and email due to expanded params
         email = kwargs.get('email')
         if email is None and len(args) > 1:
             email = args[1]
@@ -25,20 +28,16 @@ class User:
             return object.__new__(cls)
 
         # If a DB row exists for this email, return it
-        session = SessionLocal()
-        try:
-            user_model = session.query(UserModel).filter(UserModel.email == email).first()
-            if user_model is not None:
-                existing = registry_get('User', getattr(user_model, 'id', None))
-                if existing is not None:
-                    return existing
-                # build wrapper and return it
-                wrapper = cls.from_model(user_model)
-                return wrapper
-            # not found, create new user
-            return object.__new__(cls)
-        finally:
-            session.close()
+        user_model = UserRepository.find_by_email(email)
+        if user_model is not None:
+            existing = registry_get('User', getattr(user_model, 'id', None))
+            if existing is not None:
+                return existing
+            # build wrapper and return it
+            wrapper = cls.from_model(user_model)
+            return wrapper
+        # not found, create new user
+        return object.__new__(cls)
 
     def __init__(self, username: str, email: str, major: str, year: int, posts: Optional[List[Post]], forum: Optional[List[Forum]], reactions: Optional[List[Forum]], is_admin: bool = False, **kwargs) -> None:
         # If this wrapper already has a db_id, skip
@@ -61,19 +60,15 @@ class User:
             raise ValueError("Year must be positive")
 
         # Check if user with this email exists in DB
-        session = SessionLocal()
-        try:
-            user_model = session.query(UserModel).filter(UserModel.email == email).first()
-            if user_model is not None:
-                existing = registry_get('User', getattr(user_model, 'id', None))
-                if existing is not None:
-                    self.__dict__ = existing.__dict__
-                    return
-                wrapper = self.from_model(user_model)
-                self.__dict__ = wrapper.__dict__
+        user_model = UserRepository.find_by_email(email)
+        if user_model is not None:
+            existing = registry_get('User', getattr(user_model, 'id', None))
+            if existing is not None:
+                self.__dict__ = existing.__dict__
                 return
-        finally:
-            session.close()
+            wrapper = self.from_model(user_model)
+            self.__dict__ = wrapper.__dict__
+            return
 
         self.user_id: int = random.randint(10000, 99999)
         self.username: str = username
@@ -86,9 +81,9 @@ class User:
         self.forum: List[Forum] = forum if forum is not None else []
         self.reactions: List[Reaction] = reactions if reactions is not None else []
         self.is_admin: bool = bool(is_admin)
-        # persist to DB
-        session = SessionLocal()
-        user_model = UserModel(
+        
+        # Create in database via repository
+        user_model = UserRepository.create(
             username=self.username,
             email=self.email,
             major=self.major,
@@ -98,106 +93,37 @@ class User:
             first_name=self.first_name,
             last_name=self.last_name
         )
-        session.add(user_model)
-        session.commit()
-        session.refresh(user_model)
         self.db_id = user_model.id
-        session.close()
+        
         # register wrapper to preserve identity when loading from DB
         register('User', getattr(self, 'db_id', None), self)
     
+    # Getters using services
     def getposts(self) -> List[Post]:
-        # Return posts for this user from the DB
-        session = SessionLocal()
-        try:
-            from .models import PostModel
-            from backend.Messages import Post
-
-            db_posts = session.query(PostModel).filter(PostModel.poster_id == getattr(self, 'db_id', None)).all()
-            return [Post.from_model(db_post, session=session) for db_post in db_posts]
-        finally:
-            session.close()
+        return UserRepository.get_posts(self)
     
     def getforums(self) -> List[Forum]:
-        # Return forums where this user is a member from the DB and sync self.forum
-        session = SessionLocal()
-        try:
-            from .models import ForumModel
-            from backend.Forum import Forum
-
-            db_forums = session.query(ForumModel).filter(ForumModel.users.any(id=getattr(self, 'db_id', None))).all()
-            # print(f"[DEBUG] DB query for forums with user db_id={self.db_id}: {[f.id for f in db_forums]}")
-            forum_wrappers = []
-            for db_forum in db_forums:
-                found = None
-                for f in self.forum:
-                    if getattr(f, 'db_id', None) == getattr(db_forum, 'id', None):
-                        found = f
-                        break
-                if found is not None:
-                    forum_wrappers.append(found)
-                else:
-                    wrapper = Forum.from_model(db_forum, session=session)
-                    forum_wrappers.append(wrapper)
-            # Sync self.forum
-            self.forum = forum_wrappers
-            # print(f"[DEBUG] User {self.username} (db_id={self.db_id}) forum wrappers after sync: {[f.db_id for f in self.forum]}")
-            return forum_wrappers
-        finally:
-            session.close()
+        return UserRepository.get_forums(self)
     
     def getreactions(self) -> List[Reaction]:
-        # Return reactions for this user from the DB.
-        session = SessionLocal()
-        try:
-            from .models import ReactionModel
-            from backend.Messages import Reaction
+        return UserRepository.get_reactions(self)
 
-            db_reactions = session.query(ReactionModel).filter(ReactionModel.user_id == getattr(self, 'db_id', None)).all()
-            return [Reaction.from_model(db_reaction, session=session) for db_reaction in db_reactions]
-        finally:
-            session.close()
-
+    # Loads from DB in various ways
     @classmethod
     def load_by_db_id(cls, db_id: int):
-        # Load User wrapper from db w/ id
-        session = SessionLocal()
-        try:
-            user_model = session.get(UserModel, db_id)
-            if user_model is None:
-                return None
-            return cls.from_model(user_model)
-        finally:
-            session.close()
+        return UserRepository.load_by_db_id(db_id)
 
     @classmethod
     def load_by_id(cls, user_id: int):
-        # Support for load_by_id function name (replace instances)
-        return cls.load_by_db_id(user_id)
+        return UserRepository.load_by_id(user_id)
 
     @classmethod
     def load_by_username(cls, username: str):
-        # Load a User wrapper DB with name
-        session = SessionLocal()
-        try:
-            user_model = session.query(UserModel).filter(UserModel.username == username).first()
-            if user_model is None:
-                return None
-            return cls.from_model(user_model)
-        finally:
-            session.close()
+        return UserRepository.load_by_username(username)
 
     @classmethod
     def load_by_email(cls, email: str):
-        """Load a User wrapper from the DB by email (returns None if not found)."""
-        session = SessionLocal()
-        try:
-            user_model = session.query(UserModel).filter(UserModel.email == email).first()
-            if user_model is None:
-                return None
-            return cls.from_model(user_model)
-        finally:
-            session.close()
+        return UserRepository.load_by_email(email)
 
     @classmethod
     def from_model(cls, user_model: UserModel):
@@ -225,16 +151,17 @@ class User:
         register('User', u.db_id, u)
         return u
     
+    # Manage Forum and post relations
     def addForum(self, forum: Forum) -> None:
         from backend.Forum import Forum
         if not isinstance(forum, Forum):
             raise TypeError("forum must be a Forum instance")
-        # Delegate to Forum.addUser to keep relation
+        # Use Forum.addUser to keep relation
         if forum not in self.forum:
             forum.addUser(self)
     
     def removeForum(self, forum: Forum) -> None:
-        # Delegate to Forum.removeUser so DB and wrapper stay synced
+        # Use Forum.removeUser so DB and wrapper stay synced
         if forum in self.forum:
             forum.removeUser(self)
     

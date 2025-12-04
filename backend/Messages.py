@@ -7,6 +7,9 @@ from .db import SessionLocal, init_db
 from .models import PostModel, ReactionModel
 from .object_registry import register, get as registry_get
 
+# Service imports
+from .messages_services import PostRepository, ReactionRepository
+
 # Ensure DB tables exist
 init_db()
 
@@ -19,7 +22,7 @@ class Post:
     DELETED_MESSAGE = "[deleted]"
 
     def __new__(cls, *args, **kwargs):
-        # Always create a new wrapper, unless it alread exists in db
+        # Support args/kwargs due to expaning params
         return object.__new__(cls)
 
     def __init__(self, poster: User, message: str, title: str, comments: Optional[List['Comment']] = None, reactions: Optional[List['Reaction']] = None):
@@ -53,16 +56,18 @@ class Post:
         self.reactions: List['Reaction'] = reactions if reactions is not None else []
         # Flag to track if post is deleted. If the poster is already deleted, delete.
         self.is_deleted: bool = getattr(self.poster, "is_deleted", False)
-        # Maintain db
-        session = SessionLocal()
+        
+        # Create in database via repository
         poster_id = getattr(self.poster, 'db_id', None)
-        post_model = PostModel(poster_id=poster_id, forum_id=None, title=self.title, message=self.message, is_deleted=self.is_deleted, parent_id=None)
-        session.add(post_model)
-        session.commit()
-        session.refresh(post_model)
+        post_model = PostRepository.create(
+            poster_id=poster_id,
+            title=self.title,
+            message=self.message,
+            is_deleted=self.is_deleted
+        )
         self.db_id = post_model.id
         self.created_at = getattr(post_model, 'created_at', None)
-        session.close()
+        
         # register wrapper to preserve identity
         register('Post', getattr(self, 'db_id', None), self)
 
@@ -81,89 +86,21 @@ class Post:
             comment.title = self.DELETED_MESSAGE
             comment.is_deleted = True  # Set deletion flag
 
+    # Getters using services
     def getposter(self) -> User:
-        # Return poster loaded from DB.
-        poster_db_id = getattr(self, 'db_id', None)
-        # If poster, return them
-        if getattr(self.poster, 'db_id', None) is not None:
-            return self.poster
-        # Otherwise, try to load from db
-        session = SessionLocal()
-        try:
-            from .models import PostModel, UserModel
-            if getattr(self, 'db_id', None) is None:
-                return self.poster
-            post_model = session.get(PostModel, getattr(self, 'db_id', None))
-            if post_model is None or post_model.poster is None:
-                return self.poster
-            from backend.User import User
-            return User.from_model(post_model.poster)
-        finally:
-            session.close()
+        return PostRepository.get_poster(self)
     
     def getcomments(self) -> List['Comment']:
-        # Load comments for this post from DB
-        session = SessionLocal()
-        try:
-            from .models import PostModel
-            from backend.Messages import Post
-            if getattr(self, 'db_id', None) is None:
-                return self.comments
-            db_comments = session.query(PostModel).filter(PostModel.parent_id == getattr(self, 'db_id', None)).all()
-            # reuse in-memory comment wrappers when possible (likely less necessary now that its in server)
-            comments = []
-            for db_comment in db_comments:
-                found = None
-                for c in self.comments:
-                    if getattr(c, 'db_id', None) == getattr(db_comment, 'id', None):
-                        found = c
-                        break
-                if found is not None:
-                    comments.append(found)
-                else:
-                    c = Post.from_model(db_comment, session=session)
-                    c.parent = self
-                    self.comments.append(c)
-                    comments.append(c)
-            return comments
-        finally:
-            session.close()
+        return PostRepository.get_comments(self)
     
     def getreactions(self) -> List['Reaction']:
-        # Load reactions for this post from DB
-        session = SessionLocal()
-        try:
-            from .models import ReactionModel
-            from backend.Messages import Reaction
-            if getattr(self, 'db_id', None) is None:
-                return self.reactions
-            db_reactions = session.query(ReactionModel).filter(ReactionModel.parent_id == getattr(self, 'db_id', None)).all()
-            reactions = []
-            for r_model in db_reactions:
-                # prefer existing reaction wrappers
-                found = None
-                for r in self.reactions:
-                    if getattr(r, 'db_id', None) == getattr(r_model, 'id', None):
-                        found = r
-                        break
-                if found is not None:
-                    found.parent = self
-                    reactions.append(found)
-                else:
-                    r = Reaction.from_model(r_model, session=session)
-                    r.parent = self
-                    # add to list
-                    self.reactions.append(r)
-                    reactions.append(r)
-            return reactions
-        finally:
-            session.close()
+        return PostRepository.get_reactions(self)
     
     def editmessage(self, new_message: str) -> None:
         self.message = new_message
     
-    def addreaction(self, reaction: 'Reaction') -> bool:
-        """Add or remove reaction. Returns True if added, False if removed."""
+    def togglereaction(self, reaction: 'Reaction') -> bool:
+        # Toggle reaction on/off
         if not isinstance(reaction, Reaction):
             raise TypeError("reaction must be a Reaction instance")
             
@@ -274,14 +211,7 @@ class Post:
     @classmethod
     def load_by_id(cls, post_id: int):
         """Load a Post wrapper from the DB by post ID (returns None if not found)."""
-        session = SessionLocal()
-        try:
-            post_model = session.query(PostModel).filter(PostModel.id == post_id).first()
-            if post_model is None:
-                return None
-            return cls.from_model(post_model, session=session)
-        finally:
-            session.close()
+        return PostRepository.load_by_id(post_id)
 
 
 class Comment(Post):
@@ -335,25 +265,17 @@ class Reaction():
             return object.__new__(cls)
 
         # Prevent duplicate: return existing wrapper if a matching reaction exists
-        session = SessionLocal()
-        try:
-            user_id = getattr(user, 'db_id', None)
-            parent_id = getattr(parent, 'db_id', None) if parent is not None else None
-            reaction_model = session.query(ReactionModel).filter(
-                ReactionModel.reaction_type == reaction_type,
-                ReactionModel.user_id == user_id,
-                ReactionModel.parent_id == parent_id
-            ).first()
-            if reaction_model is not None:
-                existing = registry_get('Reaction', getattr(reaction_model, 'id', None))
-                if existing is not None:
-                    return existing
-                wrapper = cls.from_model(reaction_model, session=session)
-                return wrapper
-            # not found create a new one
-            return object.__new__(cls)
-        finally:
-            session.close()
+        user_id = getattr(user, 'db_id', None)
+        parent_id = getattr(parent, 'db_id', None) if parent is not None else None
+        reaction_model = ReactionRepository.find_by_type_user_parent(reaction_type, user_id, parent_id)
+        if reaction_model is not None:
+            existing = registry_get('Reaction', getattr(reaction_model, 'id', None))
+            if existing is not None:
+                return existing
+            wrapper = cls.from_model(reaction_model)
+            return wrapper
+        # not found create a new one
+        return object.__new__(cls)
 
     def __init__(self, reaction_type: str, user: User, parent: Optional[Post] = None):
         if user is None:
@@ -368,16 +290,17 @@ class Reaction():
         self.reaction_type: str = reaction_type
         self.user: User = user
         self.parent: Optional[Post] = parent
-        # persist reaction to DB
-        session = SessionLocal()
+        
+        # Create in database via repository
         user_id = getattr(self.user, 'db_id', None)
         parent_id = getattr(self.parent, 'db_id', None)
-        reaction_model = ReactionModel(reaction_type=self.reaction_type, user_id=user_id, parent_id=parent_id)
-        session.add(reaction_model)
-        session.commit()
-        session.refresh(reaction_model)
+        reaction_model = ReactionRepository.create(
+            reaction_type=self.reaction_type,
+            user_id=user_id,
+            parent_id=parent_id
+        )
         self.db_id = reaction_model.id
-        session.close()
+        
         # register wrapper to preserve identity
         register('Reaction', getattr(self, 'db_id', None), self)
     

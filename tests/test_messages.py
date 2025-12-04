@@ -201,9 +201,9 @@ class TestReaction(TestPostBase):
     def test_add_and_remove_reaction(self):
         # Test basic reaction functionality
         reaction = Reaction(reaction_type="like", user=self.user)
-        self.post.addreaction(reaction)
+        self.post.togglereaction(reaction)
         self.assertIn(reaction, self.post.getreactions())
-        self.post.removereaction(reaction)
+        self.post.togglereaction(reaction)  # Toggle again to remove
         self.assertNotIn(reaction, self.post.getreactions())
 
     def test_invalid_reactions(self):
@@ -219,9 +219,9 @@ class TestReaction(TestPostBase):
         # Test duplicate reaction from same user
         reaction1 = Reaction(reaction_type="like", user=self.user)
         reaction2 = Reaction(reaction_type="like", user=self.user)
-        self.post.addreaction(reaction1)
+        self.post.togglereaction(reaction1)
         with self.assertRaises(ValueError):
-            self.post.addreaction(reaction2)
+            self.post.togglereaction(reaction2)
 
     def test_reaction_types(self):
         # Test all valid reaction types

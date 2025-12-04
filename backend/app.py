@@ -878,7 +878,7 @@ def add_reaction(post_id, reaction_id, user_id):
             raise ValueError()
         
         new_reaction = Reaction(reaction_name, user)
-        added = post.addreaction(new_reaction)
+        added = post.togglereaction(new_reaction)
 
         if added:
             return jsonify({'message': 'Reaction added successfully', 'added': True}), 201
