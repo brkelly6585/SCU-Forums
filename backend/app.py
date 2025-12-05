@@ -6,10 +6,10 @@ from backend.db import SessionLocal
 from backend.models import UserModel
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from backend.key import GOOGLE_ID
 
 app = Flask(__name__)
 
-GOOGLE_ID = "437960362432-34e8ipa7a4ivuvu1jsq32u6qu6j51uf7.apps.googleusercontent.com"
 
 # Simple CORS headers
 @app.after_request

@@ -27,6 +27,7 @@ function CreateAccount() {
 
     useEffect(() => {
         document.title = "Create Account";
+        // Use email stored in session storage during login process
         const storedEmail = sessionStorage.getItem("newEmail");
         
         if(storedEmail && storedEmail.length > 0){
@@ -39,6 +40,7 @@ function CreateAccount() {
     const handleChange = (key: string, value: string) =>
         setProfile({ ...profile, [key]: value });
 
+    // Confirm info validity then send created user to the backend
     const handleSaveInfo = async () => {
         const  info: Record<string, any> = {};
         for (const [key, value] of Object.entries(profile)) {

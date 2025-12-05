@@ -56,6 +56,7 @@ function Post() {
         await fetchRoleStatus();
     };
 
+    // Fetch function for all posts for forum
     const handleGetPosts = async () => {
         setError("");
         if (!forumId) {
@@ -72,6 +73,7 @@ function Post() {
                     handleRecentForum(data.course_name);
                 }
                 if (data.posts) {
+                    // Format and assign post data if successfully obtained from database
                     const mapped = data.posts.map((p: any) => ({
                         id: String(p.id),
                         title: p.title,
@@ -88,6 +90,7 @@ function Post() {
                     setPosts(mapped);
                 }
                 if (data.users) {
+                    // Format and assign user data
                     const authorizedIds = (data.authorized_users || []).map((u: any) => u.id);
                     const restrictedIds = (data.restricted_users || []).map((u: any) => u.id);
                     const mappedUsers = data.users.map((u: any) => ({
@@ -110,20 +113,25 @@ function Post() {
         }
     };
 
+    // Add accessed forum to the "Recent Forums" tab
     const handleRecentForum = (forumValue: string) => {
         if(!forumValue || !forumId) return;
 
+        // Grab copy of items + ids from sessionStorage, will be null if not found
         const forumOne = sessionStorage.getItem("forumOne");
         const forumOneId = sessionStorage.getItem("forumOneId");
         const forumTwo = sessionStorage.getItem("forumTwo");
         const forumTwoId = sessionStorage.getItem("forumTwoId");
+        // Can always put newest forum as slot one of the list
         sessionStorage.setItem("forumOne", forumValue);
         sessionStorage.setItem("forumOneId", forumId);
         // Check if forum is already in list
         if(forumValue == forumOne){
+            // If currently accessed forum is already in the list as the most recent item, do nothing
             return;
         }
         else if(forumValue == forumTwo && (forumOne && forumOne.length > 0 && forumOneId && !isNaN(Number(forumOneId)))){
+            // If currently accessed forum is in the list as the second most recent item, switch items one and two
             sessionStorage.setItem("forumTwo", forumOne);
             sessionStorage.setItem("forumTwoId", forumOneId);
             
@@ -141,6 +149,7 @@ function Post() {
 
     }
 
+    // Get role of user when invoked
     const fetchRoleStatus = async () => {
         try {
             const stored = sessionStorage.getItem('user');
@@ -160,6 +169,7 @@ function Post() {
         } catch { /* ignore */ }
     };
 
+    // Logic to both create new post object on front end UI and save post in the database
     const handleAddPost = async () => {
         if (!newPostTitle.trim() || !newPostMessage.trim()) {
             setError("Please enter both a title and message");
@@ -172,6 +182,7 @@ function Post() {
         setError("");
         setLoading(true);
         try {
+            // Invoke backend to save post in database
             const stored = sessionStorage.getItem('user');
             if (!stored) {
                 setError("You must be logged in to create a post");
@@ -190,6 +201,7 @@ function Post() {
             });
             const data = await resp.json().catch(() => null);
             if (resp.ok && data && data.post) {
+                // Add post to existing posts on the front end
                 const newPost: Thread = {
                     id: String(data.post.id),
                     title: data.post.title,
@@ -210,7 +222,8 @@ function Post() {
         }
     };
 
-
+    // Call backend to change the restriction status of a given user
+    // Admin only
     const toggleRestriction = async (userEmail: string, currentlyRestricted: boolean) => {
         if (!(role.isAdmin || role.isAuthorized)) return;
         try {
@@ -232,6 +245,7 @@ function Post() {
         } catch { setError('Network error updating restriction'); }
     };
 
+    // Create warning for user before leaving forum.  When confirmed, remove user from database for this forum
     const leaveForum = async () => {
         if (!window.confirm('Are you sure you want to leave this forum?')) {
             return;
@@ -256,6 +270,8 @@ function Post() {
         } catch { setError('Network error leaving forum'); }
     };
 
+    // Process to give a user admin privileges for this forum
+    // Admin only
     const authorizeUser = async (userEmail: string) => {
         if (!role.isAdmin) return;
         try {
@@ -276,6 +292,8 @@ function Post() {
         } catch { setError('Network error authorizing user'); }
     };
 
+    // Process to revoke admin privileges for a user in this forum
+    // Admin only
     const deauthorizeUser = async (userEmail: string) => {
         if (!role.isAdmin) return;
         try {
@@ -296,6 +314,7 @@ function Post() {
         } catch { setError('Network error deauthorizing user'); }
     };
 
+    // Add user to the list of forum members
     const joinForum = async () => {
         setError('');
         setLoading(true);
@@ -320,6 +339,8 @@ function Post() {
         finally { setLoading(false); }
     };
 
+    // Process to permanently delete a forum from the database
+    // Admin only
     const deleteForum = async () => {
         if (!role.isAdmin) return;
         if (!window.confirm('Delete this forum and all its content? This cannot be undone.')) {

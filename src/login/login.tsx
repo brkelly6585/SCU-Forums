@@ -10,9 +10,11 @@ function Login() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // Function invoked when google login is successfully completed
     const handleGoogleLogin = async (response: any) => {
         setLoading(true);
         try {
+            // API call to verify login with own database
             const resp = await fetch("http://127.0.0.1:5000/api/googlelogin", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -20,9 +22,11 @@ function Login() {
             });
             const data = await resp.json().catch(() => null);
             if (resp.ok && data) {
+                // Set session storage and send to dashboard if successful
                 sessionStorage.setItem("user", JSON.stringify(data));
                 navigate("/dashboard");
             }else if (data && data.email && resp.status == 404){
+                // Send to create account if email is not found within database
                 sessionStorage.setItem("newEmail", data.email)
                 navigate("/createaccount");
             } else {
